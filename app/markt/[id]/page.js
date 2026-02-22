@@ -55,7 +55,7 @@ export default function EventDetailPage() {
 
         setTickets(ticketsData ?? []);
 
-        const ticketIds = (ticketsData ?? []).map((t) => t.id);
+        const ticketIds = (ticketsData ?? []).map((tk) => tk.id);
 
         let allBids = [];
 
@@ -170,9 +170,9 @@ export default function EventDetailPage() {
     );
   }
 
-  const askPrices = tickets.map((t) => Number(t.ask_price));
+  const askPrices = tickets.map((tk) => Number(tk.ask_price));
   const lowestAsk = askPrices.length > 0 ? Math.min(...askPrices) : null;
-  const cheapestTicket = tickets.find((t) => Number(t.ask_price) === lowestAsk);
+  const cheapestTicket = tickets.find((tk) => Number(tk.ask_price) === lowestAsk);
   const highestBid = bids.length > 0 ? Number(bids[0].bid_price) : null;
   const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
 
@@ -297,15 +297,15 @@ export default function EventDetailPage() {
                 </div>
               ) : (
                 <div className="max-h-80 overflow-y-auto">
-                  {tickets.map((t) => (
-                    <div key={t.id} className="relative">
+                  {tickets.map((tk) => (
+                    <div key={tk.id} className="relative">
                       <div className="absolute inset-y-0 left-0 bg-rose-50" style={{ width: '100%' }} />
                       <div className="relative grid grid-cols-2 px-4 py-1.5 text-xs">
                         <span className="font-semibold text-rose-700">
-                          € {formatPrice(t.ask_price)}
+                          € {formatPrice(tk.ask_price)}
                         </span>
                         <span className="text-right text-rose-500">
-                          € {formatPrice(calculateBuyerTotal(Number(t.ask_price)))}
+                          € {formatPrice(calculateBuyerTotal(Number(tk.ask_price)))}
                         </span>
                       </div>
                     </div>

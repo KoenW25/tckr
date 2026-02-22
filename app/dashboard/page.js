@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
         if (error) throw error;
 
-        const eventIds = [...new Set((data ?? []).map((t) => t.event_id).filter(Boolean))];
+        const eventIds = [...new Set((data ?? []).map((tk) => tk.event_id).filter(Boolean))];
         let eventMap = {};
         if (eventIds.length > 0) {
           const { data: events } = await supabase
@@ -74,9 +74,9 @@ export default function DashboardPage() {
           for (const ev of events ?? []) eventMap[ev.id] = ev;
         }
 
-        const enriched = (data ?? []).map((t) => ({
-          ...t,
-          eventInfo: eventMap[t.event_id] || null,
+        const enriched = (data ?? []).map((tk) => ({
+          ...tk,
+          eventInfo: eventMap[tk.event_id] || null,
         }));
 
         setSellerTickets(enriched);
@@ -109,7 +109,7 @@ export default function DashboardPage() {
 
         if (error) throw error;
 
-        const eventIds = [...new Set((data ?? []).map((t) => t.event_id).filter(Boolean))];
+        const eventIds = [...new Set((data ?? []).map((tk) => tk.event_id).filter(Boolean))];
         let eventMap = {};
         if (eventIds.length > 0) {
           const { data: events } = await supabase
@@ -119,9 +119,9 @@ export default function DashboardPage() {
           for (const ev of events ?? []) eventMap[ev.id] = ev;
         }
 
-        const enriched = (data ?? []).map((t) => ({
-          ...t,
-          eventInfo: eventMap[t.event_id] || null,
+        const enriched = (data ?? []).map((tk) => ({
+          ...tk,
+          eventInfo: eventMap[tk.event_id] || null,
         }));
 
         setPurchasedTickets(enriched);
@@ -144,8 +144,8 @@ export default function DashboardPage() {
       }
       setLoadingBids(true);
       try {
-        const ticketIds = sellerTickets.map((t) => t.id);
-        const eventIds = [...new Set(sellerTickets.map((t) => t.event_id).filter(Boolean))];
+        const ticketIds = sellerTickets.map((tk) => tk.id);
+        const eventIds = [...new Set(sellerTickets.map((tk) => tk.event_id).filter(Boolean))];
 
         const { data: ticketBids, error: tErr } = await supabase
           .from('bids')
@@ -293,7 +293,7 @@ export default function DashboardPage() {
       }
       const { error: deleteError } = await supabase.from('tickets').delete().eq('id', ticket.id);
       if (deleteError) { setTicketsError(t('dash.deleteError', lang)); return; }
-      setSellerTickets((prev) => prev.filter((t) => t.id !== ticket.id));
+      setSellerTickets((prev) => prev.filter((tk) => tk.id !== ticket.id));
     } catch (err) {
       console.error('Unexpected error deleting ticket:', err);
       setTicketsError(t('dash.deleteError', lang));
@@ -310,7 +310,7 @@ export default function DashboardPage() {
       let targetTicketId = bid.ticket_id;
 
       if (!targetTicketId && bid.event_id) {
-        const availableTicket = sellerTickets.find((t) => t.event_id === bid.event_id && t.status === 'available');
+        const availableTicket = sellerTickets.find((tk) => tk.event_id === bid.event_id && tk.status === 'available');
         if (!availableTicket) { setTicketsError(t('dash.acceptNoTicket', lang)); setAcceptingBidId(null); return; }
         targetTicketId = availableTicket.id;
         await supabase.from('bids').update({ ticket_id: targetTicketId }).eq('id', bid.id);
@@ -333,7 +333,7 @@ export default function DashboardPage() {
       );
       if (targetTicketId) {
         setSellerTickets((prev) =>
-          prev.map((t) => (t.id === targetTicketId ? { ...t, status: 'reserved', reserved_for: bid.user_id, reserved_until: reservedUntil } : t))
+          prev.map((tk) => (tk.id === targetTicketId ? { ...tk, status: 'reserved', reserved_for: bid.user_id, reserved_until: reservedUntil } : tk))
         );
       }
     } catch (err) {
@@ -384,8 +384,8 @@ export default function DashboardPage() {
   };
 
   // Stats
-  const activeCount = sellerTickets.filter((t) => t.status === 'available').length;
-  const soldCount = sellerTickets.filter((t) => t.status === 'sold').length;
+  const activeCount = sellerTickets.filter((tk) => tk.status === 'available').length;
+  const soldCount = sellerTickets.filter((tk) => tk.status === 'sold').length;
   const boughtCount = purchasedTickets.length;
 
   const displayName = user?.user_metadata?.full_name?.split?.(' ')?.[0] || user?.email || '';
@@ -624,9 +624,9 @@ export default function DashboardPage() {
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {bidsOnMyTickets.map((bid) => {
                           const parent = bid.ticket_id
-                            ? sellerTickets.find((t) => t.id === bid.ticket_id)
+                            ? sellerTickets.find((tk) => tk.id === bid.ticket_id)
                             : bid.event_id
-                              ? sellerTickets.find((t) => t.event_id === bid.event_id)
+                              ? sellerTickets.find((tk) => tk.event_id === bid.event_id)
                               : null;
                           const label = parent?.eventInfo?.name || parent?.event_name || (bid.event_id ? `Event #${bid.event_id}` : `Bod #${bid.id}`);
                           return (

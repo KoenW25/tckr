@@ -47,7 +47,7 @@ export default function MarktPage() {
         .eq('status', 'available')
         .not('ask_price', 'is', null);
 
-      const ticketIds = (tickets ?? []).map((t) => t.id);
+      const ticketIds = (tickets ?? []).map((tk) => tk.id);
 
       let ticketBidMap = {};
       if (ticketIds.length > 0) {
