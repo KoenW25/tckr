@@ -2,24 +2,10 @@ import { NextResponse } from 'next/server'
 
 export function middleware(request) {
   const { pathname } = request.nextUrl
-
-  if (
-    pathname.startsWith('/coming-soon') ||
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/_next') ||
-    pathname.includes('favicon')
-  ) {
-    return NextResponse.next()
-  }
-
-  const supabaseCookie = request.cookies.getAll()
-    .find(c => c.name.includes('auth-token') || c.name.includes('supabase'))
-
-  if (!supabaseCookie) {
-    return NextResponse.redirect(new URL('/coming-soon', request.url))
-  }
+  const cookies = request.cookies.getAll()
+  
+  console.log('PATH:', pathname)
+  console.log('COOKIES:', cookies.map(c => c.name))
 
   return NextResponse.next()
 }
