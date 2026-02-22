@@ -11,6 +11,11 @@ export default function AuthCallbackPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'SIGNED_IN' && session) {
+          // Fire-and-forget: API checks if user is new before sending
+          fetch('/api/email/welcome', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          }).catch(() => {});
           router.replace('/dashboard');
         } else if (event === 'TOKEN_REFRESHED' && session) {
           router.replace('/dashboard');

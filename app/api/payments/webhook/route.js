@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendBuyerConfirmationEmail, sendSellerNotificationEmail } from '@/lib/email';
 
 const supabaseService = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -75,6 +76,41 @@ export async function POST(request) {
         console.error('[Mollie Webhook] Supabase update error:', JSON.stringify(error));
       } else {
         console.log('[Mollie Webhook] Ticket updated successfully:', JSON.stringify(data));
+
+        const ticket = data?.[0];
+        if (ticket) {
+          const eventName = ticket.event_name || 'Onbekend evenement';
+          const totalAmount = payment.amount?.value || ticket.price;
+
+          // Send buyer confirmation email
+          if (buyerId) {
+            const { data: buyer } = await supabaseService
+              .from('profiles')
+              .select('email')
+              .eq('id', buyerId)
+              .single();
+
+            if (buyer?.email) {
+              await sendBuyerConfirmationEmail(buyer.email, eventName, totalAmount);
+              console.log('[Mollie Webhook] Buyer confirmation email sent to', buyer.email);
+            }
+          }
+
+          // Send seller notification email
+          if (ticket.seller_id) {
+            const { data: seller } = await supabaseService
+              .from('profiles')
+              .select('email')
+              .eq('id', ticket.seller_id)
+              .single();
+
+            const sellerAmount = ticket.price;
+            if (seller?.email) {
+              await sendSellerNotificationEmail(seller.email, eventName, sellerAmount);
+              console.log('[Mollie Webhook] Seller notification email sent to', seller.email);
+            }
+          }
+        }
       }
     } else {
       console.log('[Mollie Webhook] Payment not paid, status:', payment.status, '- no action taken');

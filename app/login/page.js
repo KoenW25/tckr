@@ -34,6 +34,8 @@ function LoginContent() {
         password: devPassword,
       });
 
+      let isNewUser = false;
+
       if (error) {
         if (error.message === 'Invalid login credentials') {
           const { error: signUpError } = await supabase.auth.signUp({
@@ -41,9 +43,22 @@ function LoginContent() {
             password: devPassword,
           });
           if (signUpError) throw signUpError;
+          isNewUser = true;
         } else {
           throw error;
         }
+      }
+
+      if (isNewUser) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            fetch('/api/email/welcome', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+          }
+        } catch {}
       }
 
       router.push('/dashboard');
