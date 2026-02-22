@@ -6,7 +6,7 @@ import supabase from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 
 const ALLOWED_EMAILS = ['koenwielandt@gmail.com'];
-const PUBLIC_PATHS = ['/coming-soon', '/login', '/auth'];
+const PUBLIC_PATHS = ['/coming-soon', '/login', '/auth', '/api', '/_next', '/favicon.ico'];
 
 export default function AuthGate({ children }) {
   const pathname = usePathname();
