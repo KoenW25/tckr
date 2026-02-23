@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, calculateServiceFee, formatPrice } from '@/lib/fees';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function EventDetailPage() {
   const { lang } = useLanguage();
@@ -19,6 +20,8 @@ export default function EventDetailPage() {
   const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [soldTickets, setSoldTickets] = useState([]);
 
   const [bidAmount, setBidAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +93,16 @@ export default function EventDetailPage() {
         });
 
         setBids(unique);
+
+        const { data: soldData } = await supabase
+          .from('tickets')
+          .select('id, ask_price, updated_at')
+          .eq('event_id', eventId)
+          .eq('status', 'sold')
+          .not('ask_price', 'is', null)
+          .order('updated_at', { ascending: true });
+
+        setSoldTickets(soldData ?? []);
       } catch (err) {
         console.error('Error loading event detail:', err);
         setError(t('event.loadError', lang));
@@ -176,6 +189,15 @@ export default function EventDetailPage() {
   const highestBid = bids.length > 0 ? Number(bids[0].bid_price) : null;
   const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
 
+  const isExpired = event.date && new Date(event.date) < new Date(new Date().toDateString());
+
+  const transactionCount = soldTickets.length;
+
+  const priceChartData = soldTickets.map((tk) => ({
+    date: new Date(tk.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+    price: Number(tk.ask_price),
+  }));
+
   const formattedDate = event.date
     ? new Date(event.date).toLocaleDateString('nl-NL', {
         day: 'numeric',
@@ -196,15 +218,24 @@ export default function EventDetailPage() {
 
         <header className="mb-8">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-              {event.name}
-            </h1>
-            <Link
-              href={`/upload?eventId=${eventId}`}
-              className="shrink-0 rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
-            >
-              {t('nav.sell', lang)}
-            </Link>
+            <div className="flex items-center gap-3">
+              <h1 className={`text-2xl font-semibold tracking-tight sm:text-3xl ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}>
+                {event.name}
+              </h1>
+              {isExpired && (
+                <span className="rounded-full bg-slate-200 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                  {t('event.expired', lang)}
+                </span>
+              )}
+            </div>
+            {!isExpired && (
+              <Link
+                href={`/upload?eventId=${eventId}`}
+                className="shrink-0 rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+              >
+                {t('nav.sell', lang)}
+              </Link>
+            )}
           </div>
           <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
             {formattedDate && <span>{formattedDate}</span>}
@@ -214,10 +245,10 @@ export default function EventDetailPage() {
         </header>
 
         {/* Spread overview */}
-        <section className="mb-8 grid gap-4 sm:grid-cols-3">
+        <section className="mb-8 grid gap-4 grid-cols-2 sm:grid-cols-4">
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-rose-500">
-              Laat (vraagprijs)
+              {t('event.ask', lang)}
             </p>
             <p className="mt-1 text-xl font-bold text-rose-700">
               {lowestAsk != null ? `€ ${formatPrice(lowestAsk)}` : '—'}
@@ -238,6 +269,47 @@ export default function EventDetailPage() {
             <p className="mt-1 text-xl font-bold text-slate-700">
               {spread != null ? `€ ${formatPrice(spread)}` : '—'}
             </p>
+          </div>
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-violet-500">
+              {t('event.transactions', lang)}
+            </p>
+            <p className="mt-1 text-xl font-bold text-violet-700">
+              {transactionCount}
+            </p>
+          </div>
+        </section>
+
+        {/* Prijsverloop grafiek */}
+        <section className="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
+          <div className="border-b border-slate-100 px-5 py-3">
+            <h2 className="text-sm font-semibold text-slate-900">{t('event.priceHistory', lang)}</h2>
+          </div>
+          <div className="p-5">
+            {priceChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={priceChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                  <defs>
+                    <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} width={50} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}
+                    formatter={(value) => [`€ ${formatPrice(value)}`, t('event.price', lang)]}
+                  />
+                  <Area type="monotone" dataKey="price" stroke="#0ea5e9" strokeWidth={2} fill="url(#priceGradient)" dot={{ r: 3, fill: '#0ea5e9', strokeWidth: 0 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="py-8 text-center text-xs text-slate-400">
+                {t('event.noPriceData', lang)}
+              </p>
+            )}
           </div>
         </section>
 

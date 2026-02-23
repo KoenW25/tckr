@@ -292,12 +292,20 @@ function EventCard({ event, lang }) {
     : null;
 
   const hasTickets = event.ticketCount > 0;
+  const isExpired = event.date && new Date(event.date) < new Date(new Date().toDateString());
 
   return (
     <Link href={`/markt/${event.id}`} className="block">
-      <article className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100 transition hover:-translate-y-0.5 hover:shadow-md">
+      <article className={`flex flex-col justify-between rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isExpired ? 'border-slate-100 bg-slate-50 opacity-60' : 'border-slate-200 bg-white shadow-slate-100'}`}>
         <div className="space-y-1">
-          <h2 className="text-sm font-semibold text-slate-900">{event.name}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className={`text-sm font-semibold ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}>{event.name}</h2>
+            {isExpired && (
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                {t('market.expired', lang)}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             {formattedDate && <span>{formattedDate}</span>}
             {formattedDate && event.venue && <span className="text-slate-300">·</span>}
