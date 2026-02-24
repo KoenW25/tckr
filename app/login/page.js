@@ -118,7 +118,7 @@ function LoginContent() {
         <section className="mb-8 flex-1 rounded-3xl bg-slate-900 px-6 py-8 text-slate-50 shadow-xl shadow-slate-900/40 lg:mb-0 lg:mr-8 lg:px-8 lg:py-10">
           <div className="mb-6 flex items-center gap-2 text-lg font-semibold tracking-tight">
             <span className="text-xl">🎟</span>
-            <span>Tickr</span>
+            <span>Tckr</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             {t('login.heroTitle', lang)}

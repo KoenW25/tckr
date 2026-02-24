@@ -8,6 +8,7 @@ export default function ComingSoonPage() {
   const { lang } = useLanguage();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState(null);
+  const [warning, setWarning] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -17,6 +18,7 @@ export default function ComingSoonPage() {
 
     setSubmitting(true);
     setStatus(null);
+    setWarning('');
 
     try {
       const res = await fetch('/api/waitlist', {
@@ -32,6 +34,13 @@ export default function ComingSoonPage() {
 
       if (json?.status === 'exists') {
         setStatus('exists');
+      } else if (json?.status === 'success_no_email') {
+        setStatus('success');
+        setWarning(
+          json?.warning ||
+            'Je staat op de wachtlijst, maar de bevestigingsmail kon niet worden verstuurd.'
+        );
+        setEmail('');
       } else {
         setStatus('success');
         setEmail('');
@@ -84,6 +93,9 @@ export default function ComingSoonPage() {
             {t('soon.exists', lang)}
           </p>
         )}
+        {warning && (
+          <p className="mt-2 text-sm text-amber-600">{warning}</p>
+        )}
         {status === 'error' && (
           <p className="mt-4 text-sm text-rose-600">
             {t('soon.error', lang)}
@@ -91,7 +103,7 @@ export default function ComingSoonPage() {
         )}
 
         <p className="mt-12 text-xs text-slate-400">
-          © {new Date().getFullYear()} Tickr
+          © {new Date().getFullYear()} Tckr
         </p>
         <a
           href="/login"

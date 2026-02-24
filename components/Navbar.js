@@ -104,7 +104,7 @@ export default function Navbar() {
             className="flex items-center gap-2 text-lg font-semibold tracking-tight hover:opacity-80"
           >
             <span className="text-xl">🎟</span>
-            <span>Tickr</span>
+            <span>Tckr</span>
           </Link>
           <div className="flex items-center gap-4 text-sm text-slate-600">
             <Link

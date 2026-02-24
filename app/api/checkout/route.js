@@ -129,7 +129,7 @@ export async function POST(request) {
         currency: 'EUR',
         value: totalAmount.toFixed(2),
       },
-      description: `Tickr – Ticket #${ticket.id}`,
+      description: `Tckr – Ticket #${ticket.id}`,
       redirectUrl: `${baseUrl}/betaling/succes`,
       metadata: {
         ticketId: ticket.id,

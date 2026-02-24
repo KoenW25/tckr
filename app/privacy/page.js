@@ -24,7 +24,7 @@ export default function PrivacyPage() {
             kader van de Algemene Verordening Gegevensbescherming (AVG / GDPR)
             verwerken wij je persoonsgegevens zorgvuldig en transparant. Deze
             tekst is een tijdelijke placeholder en beschrijft niet het definitieve
-            privacybeleid van Tickr.
+            privacybeleid van Tckr.
           </p>
           <p>
             In een definitieve versie zal onder andere worden toegelicht welke
@@ -38,7 +38,7 @@ export default function PrivacyPage() {
             worden beschouwd als juridisch advies of als volledig compliant met
             de AVG / GDPR. Raadpleeg een juridisch adviseur om een formeel
             privacybeleid op te stellen dat aansluit bij de daadwerkelijke
-            gegevensverwerkingen binnen Tickr.
+            gegevensverwerkingen binnen Tckr.
           </p>
         </section>
       </main>

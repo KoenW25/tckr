@@ -193,7 +193,7 @@ export async function POST(request) {
 
     if (existingTicket) {
       return Response.json(
-        { error: 'Dit ticket is al eerder geüpload op Tickr.' },
+        { error: 'Dit ticket is al eerder geüpload op Tckr.' },
         { status: 409 }
       );
     }

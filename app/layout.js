@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Tickr – De eerlijke markt voor live tickets",
+  title: "Tckr – De eerlijke markt voor live tickets",
   description: "Koop en verkoop tickets voor live events op een eerlijke en transparante manier.",
 };
 

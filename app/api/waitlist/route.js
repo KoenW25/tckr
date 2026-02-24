@@ -46,7 +46,19 @@ export async function POST(request) {
       return Response.json({ error: 'Kon je niet inschrijven op de wachtlijst.' }, { status: 500 });
     }
 
-    await sendWaitlistConfirmationEmail(email);
+    const { error: mailError } = await sendWaitlistConfirmationEmail(email);
+    if (mailError) {
+      console.error('[Waitlist] Confirmation email failed:', mailError);
+      return Response.json(
+        {
+          status: 'success_no_email',
+          warning:
+            'Je staat op de wachtlijst, maar de bevestigingsmail kon niet worden verstuurd.',
+        },
+        { status: 200 }
+      );
+    }
+
     return Response.json({ status: 'success' }, { status: 200 });
   } catch (err) {
     console.error('[Waitlist] Unexpected error:', err);
