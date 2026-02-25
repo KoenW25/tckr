@@ -18,10 +18,10 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [bids, setBids] = useState([]);
+  const [transactionCount, setTransactionCount] = useState(0);
+  const [priceChartData, setPriceChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [soldTickets, setSoldTickets] = useState([]);
 
   const [bidAmount, setBidAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -94,15 +94,22 @@ export default function EventDetailPage() {
 
         setBids(unique);
 
-        const { data: soldData } = await supabase
-          .from('tickets')
-          .select('id, ask_price, updated_at')
-          .eq('event_id', eventId)
-          .eq('status', 'sold')
-          .not('ask_price', 'is', null)
-          .order('updated_at', { ascending: true });
-
-        setSoldTickets(soldData ?? []);
+        const txRes = await fetch(`/api/events/${eventId}/transactions`);
+        if (txRes.ok) {
+          const txJson = await txRes.json();
+          const points = (txJson?.points ?? []).map((tx) => ({
+            date: new Date(tx.soldAt).toLocaleDateString('nl-NL', {
+              day: 'numeric',
+              month: 'short',
+            }),
+            price: Number(tx.price),
+          }));
+          setPriceChartData(points);
+          setTransactionCount(Number(txJson?.count ?? points.length));
+        } else {
+          setPriceChartData([]);
+          setTransactionCount(0);
+        }
       } catch (err) {
         console.error('Error loading event detail:', err);
         setError(t('event.loadError', lang));
@@ -190,13 +197,6 @@ export default function EventDetailPage() {
   const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
 
   const isExpired = event.date && new Date(event.date) < new Date(new Date().toDateString());
-
-  const transactionCount = soldTickets.length;
-
-  const priceChartData = soldTickets.map((tk) => ({
-    date: new Date(tk.updated_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
-    price: Number(tk.ask_price),
-  }));
 
   const formattedDate = event.date
     ? new Date(event.date).toLocaleDateString('nl-NL', {

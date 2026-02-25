@@ -6,6 +6,77 @@ const supabaseService = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+function extractStoragePathFromUrl(url) {
+  if (!url) return null;
+  const normalized = decodeURIComponent(String(url)).trim();
+
+  // If only raw storage path is stored (e.g. "userId/file.pdf"), use as-is.
+  if (!normalized.startsWith('http')) {
+    return normalized.split('?')[0].replace(/^\/+/, '');
+  }
+
+  const markers = [
+    '/storage/v1/object/public/tickets/',
+    '/storage/v1/object/authenticated/tickets/',
+    '/storage/v1/object/sign/tickets/',
+  ];
+  for (const marker of markers) {
+    const index = normalized.indexOf(marker);
+    if (index !== -1) return normalized.substring(index + marker.length).split('?')[0];
+  }
+
+  // Generic parsing for legacy URLs where bucket may be embedded differently.
+  const genericMarkers = [
+    '/storage/v1/object/public/',
+    '/storage/v1/object/authenticated/',
+    '/storage/v1/object/sign/',
+  ];
+  for (const marker of genericMarkers) {
+    const idx = normalized.indexOf(marker);
+    if (idx === -1) continue;
+    const tail = normalized.substring(idx + marker.length).split('?')[0];
+    const [bucket, ...rest] = tail.split('/');
+    if (bucket === 'tickets' && rest.length > 0) {
+      return rest.join('/');
+    }
+  }
+
+  return null;
+}
+
+function getSignedUrlExpirySeconds(eventDate) {
+  const minimum = 60 * 60 * 24; // minimaal 1 dag
+  if (!eventDate) return minimum;
+
+  const eventDateObj = new Date(eventDate);
+  if (Number.isNaN(eventDateObj.getTime())) return minimum;
+
+  // Geldig t/m minimaal 1 dag na eventdatum
+  const validUntil = new Date(eventDateObj);
+  validUntil.setDate(validUntil.getDate() + 1);
+  validUntil.setHours(23, 59, 59, 999);
+
+  const secondsUntil = Math.ceil((validUntil.getTime() - Date.now()) / 1000);
+  return Math.max(minimum, secondsUntil);
+}
+
+async function createTicketSignedUrl(pdfUrl, eventDate) {
+  const storagePath = extractStoragePathFromUrl(pdfUrl);
+  if (!storagePath) return null;
+  const expiresIn = getSignedUrlExpirySeconds(eventDate);
+
+  const { data, error } = await supabaseService.storage
+    .from('tickets')
+    .createSignedUrl(storagePath, expiresIn);
+
+  if (error || !data?.signedUrl) {
+    console.warn('[Mollie Webhook] Could not create signed URL:', error, '| path:', storagePath);
+    return null;
+  }
+
+  return data.signedUrl;
+}
+
 async function getUserEmailById(userId) {
   if (!userId) return null;
 
@@ -106,15 +177,42 @@ export async function POST(request) {
           const buyerUserId = buyerId || ticket.buyer_id;
           const sellerUserId = ticket.seller_id || ticket.user_id;
 
+          if (ticket.event_id != null) {
+            const soldPrice = Number(ticket.ask_price ?? ticket.price ?? payment.amount?.value ?? 0);
+            const { error: txError } = await supabaseService
+              .from('ticket_transactions')
+              .upsert(
+                {
+                  payment_id: String(paymentId),
+                  event_id: String(ticket.event_id),
+                  ticket_id: String(ticket.id),
+                  sold_price: Number.isFinite(soldPrice) ? soldPrice : 0,
+                  sold_at: payment.paidAt || new Date().toISOString(),
+                  buyer_id: buyerUserId || null,
+                  seller_id: sellerUserId || null,
+                },
+                { onConflict: 'payment_id' }
+              );
+            if (txError) {
+              console.error('[Mollie Webhook] Transaction log upsert failed:', txError);
+            }
+          } else {
+            console.warn('[Mollie Webhook] Skipping transaction log: ticket has no event_id');
+          }
+
           // Send buyer confirmation email
           if (buyerUserId) {
             const buyerEmail = await getUserEmailById(buyerUserId);
             if (buyerEmail) {
+              const signedPdfUrl = await createTicketSignedUrl(
+                ticket.pdf_url || null,
+                ticket.event_date || null
+              );
               await sendBuyerConfirmationEmail(
                 buyerEmail,
                 eventName,
                 totalAmount,
-                ticket.pdf_url || null
+                signedPdfUrl
               );
               console.log('[Mollie Webhook] Buyer confirmation email sent to', buyerEmail);
             } else {
