@@ -5,9 +5,14 @@ const supabaseService = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export async function GET(_request, { params }) {
+export async function GET(_request, context) {
   try {
-    const eventId = params?.id ? String(params.id) : '';
+    const maybeParams = context?.params;
+    const resolvedParams =
+      maybeParams && typeof maybeParams.then === 'function'
+        ? await maybeParams
+        : maybeParams;
+    const eventId = resolvedParams?.id ? String(resolvedParams.id) : '';
     if (!eventId) {
       return Response.json({ error: 'eventId is verplicht.' }, { status: 400 });
     }
@@ -31,17 +36,22 @@ export async function GET(_request, { params }) {
     if (transactions.length === 0) {
       const { data: soldTickets, error: soldError } = await supabaseService
         .from('tickets')
-        .select('ask_price, updated_at')
+        .select('ask_price, price, sold_at, updated_at, created_at')
         .eq('event_id', eventId)
         .eq('status', 'sold')
-        .not('ask_price', 'is', null)
         .order('updated_at', { ascending: true });
 
       if (!soldError) {
-        transactions = (soldTickets ?? []).map((tk) => ({
-          sold_price: Number(tk.ask_price),
-          sold_at: tk.updated_at || new Date().toISOString(),
-        }));
+        transactions = (soldTickets ?? [])
+          .map((tk) => {
+            const soldPrice = Number(tk.ask_price ?? tk.price);
+            if (!Number.isFinite(soldPrice)) return null;
+            return {
+              sold_price: soldPrice,
+              sold_at: tk.sold_at || tk.updated_at || tk.created_at || new Date().toISOString(),
+            };
+          })
+          .filter(Boolean);
       }
     }
 

@@ -389,6 +389,10 @@ export default function DashboardPage() {
   const boughtCount = purchasedTickets.length;
 
   const displayName = user?.user_metadata?.full_name?.split?.(' ')?.[0] || user?.email || '';
+  const goToEvent = (eventId) => {
+    if (!eventId) return;
+    window.location.href = `/markt/${eventId}`;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -508,7 +512,11 @@ export default function DashboardPage() {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
                         return (
-                          <tr key={ticket.id}>
+                          <tr
+                            key={ticket.id}
+                            onClick={() => goToEvent(ticket.event_id)}
+                            className={ticket.event_id ? 'cursor-pointer hover:bg-slate-50' : ''}
+                          >
                             <td className="px-3 py-2 text-xs text-slate-900">
                               {name}
                               {date && (
@@ -523,7 +531,7 @@ export default function DashboardPage() {
                             <td className="px-3 py-2 text-right text-xs font-medium text-slate-900">
                               {ticket.ask_price != null ? `€ ${Number(ticket.ask_price).toFixed(2).replace('.', ',')}` : '—'}
                             </td>
-                            <td className="px-3 py-2 text-right text-xs">
+                            <td className="px-3 py-2 text-right text-xs" onClick={(e) => e.stopPropagation()}>
                               {ticket.status === 'available' ? (
                                 <button
                                   type="button"
@@ -568,7 +576,11 @@ export default function DashboardPage() {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
                         return (
-                          <tr key={ticket.id}>
+                          <tr
+                            key={ticket.id}
+                            onClick={() => goToEvent(ticket.event_id)}
+                            className={ticket.event_id ? 'cursor-pointer hover:bg-slate-50' : ''}
+                          >
                             <td className="px-3 py-2 text-xs text-slate-900">
                               {name}
                               {date && (
@@ -580,7 +592,7 @@ export default function DashboardPage() {
                             <td className="px-3 py-2 text-right text-xs font-medium text-slate-900">
                               {ticket.ask_price != null ? `€ ${Number(ticket.ask_price).toFixed(2).replace('.', ',')}` : '—'}
                             </td>
-                            <td className="px-3 py-2 text-right text-xs">
+                            <td className="px-3 py-2 text-right text-xs" onClick={(e) => e.stopPropagation()}>
                               {ticket.pdf_url ? (
                                 <button
                                   type="button"

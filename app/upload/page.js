@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
@@ -10,6 +10,7 @@ import { calculateServiceFee, calculateBuyerTotal, formatPrice } from '@/lib/fee
 export default function UploadPage() {
   const { lang } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef(null);
 
   const [user, setUser] = useState(null);
@@ -79,6 +80,18 @@ export default function UploadPage() {
     }
     fetchEvents();
   }, []);
+
+  useEffect(() => {
+    const eventId = searchParams.get('eventId');
+    if (!eventId || !events.length || selectedEvent) return;
+
+    const preselected = events.find((ev) => String(ev.id) === String(eventId));
+    if (preselected) {
+      setSelectedEvent(preselected);
+      setEventSearch(preselected.name);
+      setShowDropdown(false);
+    }
+  }, [searchParams, events, selectedEvent]);
 
   const filteredEvents = useMemo(() => {
     if (!eventSearch.trim()) return events;
