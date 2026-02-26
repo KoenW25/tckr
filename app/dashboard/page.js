@@ -307,23 +307,31 @@ export default function DashboardPage() {
     if (!window.confirm(t('dash.confirmAccept', lang) + ` €${Number(bid.bid_price).toFixed(2).replace('.', ',')} ` + t('dash.confirmAcceptSuffix', lang))) return;
     setAcceptingBidId(bid.id);
     try {
-      const reservedUntil = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-      let targetTicketId = bid.ticket_id;
-
-      if (!targetTicketId && bid.event_id) {
-        const availableTicket = sellerTickets.find((tk) => tk.event_id === bid.event_id && tk.status === 'available');
-        if (!availableTicket) { setTicketsError(t('dash.acceptNoTicket', lang)); setAcceptingBidId(null); return; }
-        targetTicketId = availableTicket.id;
-        await supabase.from('bids').update({ ticket_id: targetTicketId }).eq('id', bid.id);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setTicketsError('Je sessie is verlopen. Log opnieuw in.');
+        return;
       }
 
-      const { error: acceptError } = await supabase.from('bids').update({ status: 'accepted' }).eq('id', bid.id);
-      if (acceptError) throw acceptError;
+      const response = await fetch('/api/bids/accept', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ bidId: bid.id }),
+      });
 
-      if (targetTicketId) {
-        await supabase.from('bids').update({ status: 'rejected' }).eq('ticket_id', targetTicketId).neq('id', bid.id).eq('status', 'pending');
-        await supabase.from('tickets').update({ status: 'reserved', reserved_for: bid.user_id, reserved_until: reservedUntil }).eq('id', targetTicketId);
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setTicketsError(json?.error || t('dash.acceptError', lang));
+        return;
       }
+
+      const targetTicketId = json?.ticketId || bid.ticket_id || null;
+      const reservedUntil = json?.reservedUntil || new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
       setBidsOnMyTickets((prev) =>
         prev.map((b) => {
@@ -766,6 +774,7 @@ function BidStatusPill({ status, lang }) {
     accepted: { labelKey: 'dash.statusAccepted', cls: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
     cancelled: { labelKey: 'dash.statusWithdrawn', cls: 'bg-slate-50 text-slate-400 ring-1 ring-slate-200' },
     rejected: { labelKey: 'dash.statusRejected', cls: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200' },
+    expired: { labelKey: 'dash.statusExpired', cls: 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' },
   };
   const c = config[status];
   const label = c ? t(c.labelKey, lang) : (status || '—');

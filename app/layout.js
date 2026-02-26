@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import AuthGate from "@/components/AuthGate";
 import { LanguageProvider } from "@/lib/LanguageContext";
@@ -29,6 +30,7 @@ export default function RootLayout({ children }) {
             {children}
           </AuthGate>
         </LanguageProvider>
+        <Analytics />
       </body>
     </html>
   );

@@ -12,6 +12,7 @@
     "@mollie/api-client": "^4.4.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
+    "@vercel/analytics": "^1.6.1",
     "@zxing/library": "^0.21.3",
     "jsqr": "^1.4.0",
     "next": "16.1.6",
