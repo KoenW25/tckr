@@ -25,19 +25,27 @@ function LoginContent() {
 
   const handleMagicLink = async (e) => {
     e.preventDefault();
+    const normalizedEmail = magicEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     setMagicError('');
     setMagicSent(false);
-    setMagicLoading(true);
+    if (!emailRegex.test(normalizedEmail)) {
+      setMagicError('Voer een geldig e-mailadres in.');
+      return;
+    }
 
     try {
+      setMagicLoading(true);
       const { error } = await supabase.auth.signInWithOtp({
-        email: magicEmail,
+        email: normalizedEmail,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: 'https://tckr.nl/auth/callback',
         },
       });
 
       if (error) throw error;
+      setMagicEmail(normalizedEmail);
       setMagicSent(true);
     } catch (err) {
       console.error('Magic link error:', err);
@@ -169,14 +177,14 @@ function LoginContent() {
             </button>
             <button className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:border-slate-300 hover:bg-slate-50">
               <span className="text-lg">Ⓜ</span>
-              <span>{t('login.meta', lang)}</span>
+              <span>Facebook</span>
             </button>
           </div>
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
             <div className="h-px flex-1 bg-slate-200" />
-            <span>{t('login.orEmail', lang)}</span>
+            <span>Of log in met een magic link</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
@@ -184,10 +192,7 @@ function LoginContent() {
             {magicSent ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
                 <p className="text-sm font-medium text-emerald-800">
-                  {t('login.magicSentTitle', lang)}
-                </p>
-                <p className="mt-1 text-xs text-emerald-600">
-                  {t('login.magicSentDesc', lang)}
+                  Check je inbox! We hebben een magic link gestuurd naar {magicEmail}. De link is 10 minuten geldig.
                 </p>
               </div>
             ) : (
@@ -205,7 +210,7 @@ function LoginContent() {
                     type="email"
                     value={magicEmail}
                     onChange={(e) => setMagicEmail(e.target.value)}
-                    placeholder={t('login.emailPlaceholder', lang)}
+                    placeholder="jouw@email.nl"
                     required
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
@@ -216,7 +221,7 @@ function LoginContent() {
                   disabled={magicLoading}
                   className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
                 >
-                  {magicLoading ? t('login.magicSending', lang) : t('login.magicLink', lang)}
+                  {magicLoading ? t('login.magicSending', lang) : 'Stuur magic link'}
                 </button>
               </>
             )}
