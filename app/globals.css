@@ -29,6 +29,12 @@ body {
 }
 
 .ticker-track {
-  animation: ticker-move 18s linear infinite;
+  animation: ticker-move 90s linear infinite;
   width: max-content;
+}
+
+.ticker-hover-zone:hover .ticker-track,
+.ticker-hover-zone .ticker-track:hover,
+.ticker-hover-zone:focus-within .ticker-track {
+  animation-play-state: paused !important;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import supabase from '@/lib/supabase';
@@ -15,8 +15,14 @@ export default function Navbar() {
   const [headerSearch, setHeaderSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [tickerPaused, setTickerPaused] = useState(false);
+  const tickerPausedRef = useRef(false);
   const router = useRouter();
   const { lang, setLang } = useLanguage();
+
+  useEffect(() => {
+    tickerPausedRef.current = tickerPaused;
+  }, [tickerPaused]);
 
   useEffect(() => {
     async function fetchUser() {
@@ -83,12 +89,14 @@ export default function Navbar() {
         };
       });
 
-      setTickerEvents(enriched);
+      if (!tickerPausedRef.current) {
+        setTickerEvents(enriched);
+      }
       setSearchEvents(events);
     }
 
     fetchTickerData();
-    const interval = setInterval(fetchTickerData, 15000);
+    const interval = setInterval(fetchTickerData, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -312,8 +320,23 @@ export default function Navbar() {
       {/* Ticker regel */}
       {tickerEvents.length > 0 && (
         <div className="border-b border-slate-200 bg-slate-900 text-xs text-emerald-300">
-          <div className="relative mx-auto max-w-6xl overflow-hidden px-4">
-            <div className="ticker-track flex gap-12 py-2">
+          <div
+            className="ticker-hover-zone relative mx-auto max-w-6xl overflow-hidden px-4"
+            onMouseEnter={() => setTickerPaused(true)}
+            onMouseLeave={() => setTickerPaused(false)}
+            onPointerEnter={() => setTickerPaused(true)}
+            onPointerLeave={() => setTickerPaused(false)}
+            onFocusCapture={() => setTickerPaused(true)}
+            onBlurCapture={() => setTickerPaused(false)}
+            onTouchStart={() => setTickerPaused(true)}
+          >
+            <div
+              className="ticker-track flex gap-12 py-2"
+              style={{
+                animationDuration: '90s',
+                animationPlayState: tickerPaused ? 'paused' : 'running',
+              }}
+            >
               {[0, 1].map((copy) => (
                 <div key={copy} className="flex shrink-0 items-center gap-10 whitespace-nowrap">
                   {tickerEvents.map((event) => (

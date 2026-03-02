@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [myBids, setMyBids] = useState([]);
   const [loadingMyBids, setLoadingMyBids] = useState(true);
   const [deletingBidId, setDeletingBidId] = useState(null);
+  const [myBidsError, setMyBidsError] = useState('');
 
   const [activeTab, setActiveTab] = useState('overzicht');
 
@@ -356,12 +357,35 @@ export default function DashboardPage() {
   const handleCancelMyBid = async (bid) => {
     if (!window.confirm(t('dash.confirmWithdraw', lang) + ` €${Number(bid.bid_price).toFixed(2).replace('.', ',')} ` + t('dash.confirmWithdrawSuffix', lang))) return;
     setDeletingBidId(bid.id);
+    setMyBidsError('');
     try {
-      const { error } = await supabase.from('bids').update({ status: 'cancelled' }).eq('id', bid.id);
-      if (error) throw error;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setMyBidsError('Je sessie is verlopen. Log opnieuw in.');
+        return;
+      }
+
+      const response = await fetch('/api/bids/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ bidId: bid.id }),
+      });
+
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMyBidsError(json?.error || 'Bod intrekken mislukt.');
+        return;
+      }
+
       setMyBids((prev) => prev.map((b) => (b.id === bid.id ? { ...b, status: 'cancelled' } : b)));
     } catch (err) {
       console.error('Error cancelling bid:', err);
+      setMyBidsError('Er ging iets mis bij het intrekken van je bod.');
     } finally {
       setDeletingBidId(null);
     }
@@ -707,6 +731,11 @@ export default function DashboardPage() {
               {/* Mijn biedingen (koper) */}
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
                 <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('dash.myBids', lang)}</h2>
+                {myBidsError && (
+                  <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    {myBidsError}
+                  </div>
+                )}
                 {loadingMyBids ? (
                   <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.loading', lang)}</div>
                 ) : myBids.length === 0 ? (
