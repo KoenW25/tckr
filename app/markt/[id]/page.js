@@ -251,7 +251,10 @@ export default function EventDetailPage() {
         <section className="mb-8 grid gap-4 grid-cols-2 sm:grid-cols-4">
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-rose-500">
-              {t('event.ask', lang)}
+              <span>{t('event.ask', lang)}</span>{' '}
+              <span className="text-[9px] normal-case tracking-normal text-rose-400">
+                ({t('event.askDetail', lang)})
+              </span>
             </p>
             <p className="mt-1 text-xl font-bold text-rose-700">
               {lowestAsk != null ? `€ ${formatPrice(lowestAsk)}` : '—'}
@@ -259,7 +262,10 @@ export default function EventDetailPage() {
           </div>
           <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-sky-500">
-              {t('event.bid', lang)}
+              <span>{t('event.bid', lang)}</span>{' '}
+              <span className="text-[9px] normal-case tracking-normal text-sky-400">
+                ({t('event.bidDetail', lang)})
+              </span>
             </p>
             <p className="mt-1 text-xl font-bold text-sky-700">
               {highestBid != null ? `€ ${formatPrice(highestBid)}` : '—'}
