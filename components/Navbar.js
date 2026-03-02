@@ -154,7 +154,11 @@ export default function Navbar() {
           ]
         : [];
 
-    return [...quickMatches, ...eventMatches, ...addEventItem].slice(0, 8);
+    const combined = [...quickMatches, ...eventMatches];
+    if (addEventItem.length > 0) {
+      return [...addEventItem, ...combined].slice(0, 8);
+    }
+    return combined.slice(0, 8);
   }, [headerSearch, searchEvents, quickLinks]);
 
   const handleSearchItemClick = (item) => {
