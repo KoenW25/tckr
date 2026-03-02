@@ -98,10 +98,7 @@ export default function Navbar() {
   };
 
   const quickLinks = useMemo(() => {
-    const links = [
-      { id: 'markt', label: t('nav.market', lang), href: '/markt', type: 'page' },
-      { id: 'faq', label: t('nav.howItWorks', lang), href: '/hoe-het-werkt', type: 'page' },
-    ];
+    const links = [{ id: 'markt', label: t('nav.market', lang), href: '/markt', type: 'page' }];
 
     if (!loading && user) {
       links.push(
@@ -168,53 +165,81 @@ export default function Navbar() {
               <span>Tckr</span>
             </Link>
 
-            <div className="hidden items-center gap-3 lg:flex">
-              <Link
-                href="/markt"
-                className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400"
-              >
-                {t('nav.market', lang)}
-              </Link>
-              {!loading && user && (
-                <>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative w-32 sm:w-44 lg:w-56">
+                <input
+                  type="text"
+                  value={headerSearch}
+                  onChange={(e) => {
+                    setHeaderSearch(e.target.value);
+                    setSearchOpen(true);
+                  }}
+                  onFocus={() => setSearchOpen(true)}
+                  placeholder="Zoeken..."
+                  className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                />
+                {searchOpen && headerSearch.trim() && (
+                  <div className="absolute right-0 z-30 mt-1 max-h-72 w-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl sm:w-80">
+                    {searchItems.length > 0 ? (
+                      searchItems.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleSearchItemClick(item)}
+                          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+                        >
+                          <span className="text-slate-800">{item.label}</span>
+                          <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                            {item.type === 'event' ? 'Event' : 'Pagina'}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-2 text-xs text-slate-400">Geen resultaten</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden items-center gap-3 lg:flex">
+                <Link
+                  href="/markt"
+                  className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400"
+                >
+                  {t('nav.market', lang)}
+                </Link>
+                {!loading && user && (
+                  <>
+                    <Link
+                      href="/upload"
+                      className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+                    >
+                      {t('nav.sell', lang)}
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      {t('nav.dashboard', lang)}
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-slate-900/30 transition hover:bg-slate-800"
+                    >
+                      {t('nav.logout', lang)}
+                    </button>
+                  </>
+                )}
+                {!loading && !user && (
                   <Link
-                    href="/upload"
+                    href="/login"
                     className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
                   >
-                    {t('nav.sell', lang)}
+                    {t('nav.login', lang)}
                   </Link>
-                  <Link
-                    href="/dashboard"
-                    className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    {t('nav.dashboard', lang)}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-slate-900/30 transition hover:bg-slate-800"
-                  >
-                    {t('nav.logout', lang)}
-                  </button>
-                </>
-              )}
-              {!loading && !user && (
-                <Link
-                  href="/login"
-                  className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
-                >
-                  {t('nav.login', lang)}
-                </Link>
-              )}
-              <Link
-                href="/hoe-het-werkt"
-                className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-              >
-                {t('nav.howItWorks', lang)}
-              </Link>
-            </div>
-
-            <div className="flex items-center gap-2">
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
@@ -230,41 +255,6 @@ export default function Navbar() {
                 Menu
               </button>
             </div>
-          </div>
-
-          <div className="relative mt-3">
-            <input
-              type="text"
-              value={headerSearch}
-              onChange={(e) => {
-                setHeaderSearch(e.target.value);
-                setSearchOpen(true);
-              }}
-              onFocus={() => setSearchOpen(true)}
-              placeholder="Zoek events of pagina's..."
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
-            />
-            {searchOpen && headerSearch.trim() && (
-              <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
-                {searchItems.length > 0 ? (
-                  searchItems.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleSearchItemClick(item)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
-                    >
-                      <span className="text-slate-800">{item.label}</span>
-                      <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
-                        {item.type === 'event' ? 'Event' : 'Pagina'}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="px-3 py-2 text-xs text-slate-400">Geen resultaten</p>
-                )}
-              </div>
-            )}
           </div>
 
           {mobileMenuOpen && (
@@ -293,9 +283,6 @@ export default function Navbar() {
                   {t('nav.login', lang)}
                 </Link>
               )}
-              <Link href="/hoe-het-werkt" className="rounded-full border border-slate-200 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-700">
-                {t('nav.howItWorks', lang)}
-              </Link>
             </div>
           )}
         </nav>
