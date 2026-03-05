@@ -48,7 +48,7 @@ export default function EventDetailPage() {
 
         if (eventErr) throw eventErr;
         if (!eventData) {
-          setError('Event niet gevonden.');
+          setError(t('event.notFound', lang));
           return;
         }
         setEvent(eventData);
@@ -176,7 +176,7 @@ export default function EventDetailPage() {
       setBidAmount('');
     } catch (err) {
       console.error('Bid error:', err);
-      setBidError('Er ging iets mis bij het plaatsen van je bod.');
+      setBidError(t('event.bidError', lang));
     } finally {
       setSubmitting(false);
     }
@@ -185,7 +185,7 @@ export default function EventDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-sm text-slate-500">Bezig met laden...</p>
+        <p className="text-sm text-slate-500">{t('event.loading', lang)}</p>
       </div>
     );
   }
@@ -195,10 +195,10 @@ export default function EventDetailPage() {
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
-            {error || 'Event niet gevonden.'}
+            {error || t('event.notFound', lang)}
           </div>
           <Link href="/markt" className="mt-4 inline-block text-xs text-sky-600 hover:underline">
-            Terug naar de markt
+            {t('event.backToMarket', lang)}
           </Link>
         </div>
       </div>
@@ -258,7 +258,7 @@ export default function EventDetailPage() {
           href="/markt"
           className="mb-6 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
         >
-          ← Terug naar de markt
+          {t('event.backToMarket', lang)}
         </Link>
 
         <header className="mb-8">
@@ -380,7 +380,7 @@ export default function EventDetailPage() {
             <div>
               <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
                 <span>{t('event.bidLabel', lang)}</span>
-                <span className="text-right">Volume</span>
+                <span className="text-right">{t('event.volume', lang)}</span>
               </div>
               {groupedBids.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-slate-400">
@@ -417,7 +417,7 @@ export default function EventDetailPage() {
             <div>
               <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
                 <span>{t('event.askLabel', lang)}</span>
-                <span className="text-right">Volume</span>
+                <span className="text-right">{t('event.volume', lang)}</span>
               </div>
               {groupedAsks.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-slate-400">

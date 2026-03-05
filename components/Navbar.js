@@ -205,7 +205,7 @@ export default function Navbar() {
                     setSearchOpen(true);
                   }}
                   onFocus={() => setSearchOpen(true)}
-                  placeholder="Zoeken..."
+                  placeholder={t('nav.searchPlaceholder', lang)}
                   className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                 />
                 {searchOpen && headerSearch.trim() && (
@@ -218,14 +218,14 @@ export default function Navbar() {
                           onClick={() => handleSearchItemClick(item)}
                           className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
                         >
-                      <span className="text-slate-800">{String(item.label || '')}</span>
+                          <span className="text-slate-800">{String(item.label || '')}</span>
                           <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
-                            {item.type === 'event' ? 'Event' : item.type === 'add-event' ? 'Nieuw' : 'Pagina'}
+                            {item.type === 'event' ? t('home.event', lang) : item.type === 'add-event' ? t('nav.new', lang) : t('nav.page', lang)}
                           </span>
                         </button>
                       ))
                     ) : (
-                      <p className="px-3 py-2 text-xs text-slate-400">Geen resultaten</p>
+                      <p className="px-3 py-2 text-xs text-slate-400">{t('nav.searchNoResults', lang)}</p>
                     )}
                   </div>
                 )}
@@ -282,7 +282,7 @@ export default function Navbar() {
                 onClick={() => setMobileMenuOpen((v) => !v)}
                 className="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition lg:hidden"
               >
-                Menu
+                {t('nav.menu', lang)}
               </button>
             </div>
           </div>
@@ -350,10 +350,10 @@ export default function Navbar() {
                       className="flex items-baseline gap-2 hover:opacity-80 transition-opacity cursor-pointer"
                     >
                       <span className="text-slate-200 tracking-[0.18em] text-[11px]">
-                        {String(event?.name || 'ONBEKEND EVENT').toUpperCase()}
+                        {String(event?.name || t('nav.unknownEvent', lang)).toUpperCase()}
                       </span>
                       <span className="font-semibold text-emerald-300">
-                        AANBOD {event.price != null ? `€${event.price}` : '—'}
+                        {t('nav.offer', lang).toUpperCase()} {event.price != null ? `€${event.price}` : '—'}
                       </span>
                       <span className="text-[11px] text-emerald-400">
                         {event.ticketCount} {event.ticketCount !== 1 ? t('nav.ticketsPlural', lang) : t('nav.tickets', lang)}

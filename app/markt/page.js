@@ -301,7 +301,7 @@ export default function MarktPage() {
               onClick={() => setShowFilters((v) => !v)}
               className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
             >
-              Filter
+              {t('market.filter', lang)}
             </button>
           </div>
 
@@ -309,14 +309,14 @@ export default function MarktPage() {
             <div className="mt-3 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100 sm:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-1">
                 <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                  Plaats
+                  {t('market.place', lang)}
                 </label>
                 <select
                   value={filterCity}
                   onChange={(e) => setFilterCity(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                 >
-                  <option value="">Alle plaatsen</option>
+                  <option value="">{t('market.allPlaces', lang)}</option>
                   {cityOptions.map((city) => (
                     <option key={city} value={city}>
                       {city}
@@ -327,14 +327,14 @@ export default function MarktPage() {
 
               <div className="space-y-1">
                 <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                  Venue
+                  {t('market.venueLabel', lang)}
                 </label>
                 <select
                   value={filterVenue}
                   onChange={(e) => setFilterVenue(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                 >
-                  <option value="">Alle venues</option>
+                  <option value="">{t('market.allVenues', lang)}</option>
                   {venueOptions.map((venue) => (
                     <option key={venue} value={venue}>
                       {venue}
@@ -345,24 +345,24 @@ export default function MarktPage() {
 
               <div className="space-y-1">
                 <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                  Datum
+                  {t('market.dateFilter', lang)}
                 </label>
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                 >
-                  <option value="all">Alle datums</option>
-                  <option value="thisWeekend">Dit weekend</option>
-                  <option value="nextWeekend">Komend weekend</option>
-                  <option value="custom">Custom datum</option>
+                  <option value="all">{t('market.allDates', lang)}</option>
+                  <option value="thisWeekend">{t('market.thisWeekend', lang)}</option>
+                  <option value="nextWeekend">{t('market.nextWeekend', lang)}</option>
+                  <option value="custom">{t('market.customDate', lang)}</option>
                 </select>
               </div>
 
               {dateFilter === 'custom' && (
                 <div className="space-y-1">
                   <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                    Kies datum
+                    {t('market.pickDate', lang)}
                   </label>
                   <input
                     type="date"
@@ -384,7 +384,7 @@ export default function MarktPage() {
                   }}
                   className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                 >
-                  Filters wissen
+                  {t('market.clearFilters', lang)}
                 </button>
               </div>
             </div>
@@ -543,7 +543,7 @@ function EventCard({ event, lang }) {
             </p>
             <p className="mt-0.5 text-[10px] text-sky-400">
               {event.bidCount > 0
-                ? `${event.bidCount} bod${event.bidCount !== 1 ? 'en' : ''}`
+                ? `${event.bidCount} ${event.bidCount !== 1 ? t('market.bidUnitPlural', lang) : t('market.bidUnitSingular', lang)}`
                 : t('market.noBids', lang)}
             </p>
           </div>
@@ -561,7 +561,7 @@ function EventCard({ event, lang }) {
         <div className="mt-3 flex items-center justify-between text-[10px]">
           <span className="text-slate-400">
             {hasTickets
-              ? `${event.ticketCount} ticket${event.ticketCount !== 1 ? 's' : ''} ${t('market.ticketsAvailable', lang)}`
+              ? `${event.ticketCount} ${event.ticketCount !== 1 ? t('market.ticketUnitPlural', lang) : t('market.ticketUnitSingular', lang)} ${t('market.ticketsAvailable', lang)}`
               : t('market.noTickets', lang)}
           </span>
           <span className="font-medium uppercase tracking-[0.18em] text-slate-400">
