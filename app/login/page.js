@@ -201,10 +201,6 @@ function LoginContent() {
               <span className="text-lg">G</span>
               <span>{t('login.google', lang)}</span>
             </button>
-            <button className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:border-slate-300 hover:bg-slate-50">
-              <span className="text-lg">Ⓜ</span>
-              <span>Facebook</span>
-            </button>
           </div>
 
           {/* Divider */}

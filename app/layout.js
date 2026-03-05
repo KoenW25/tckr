@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import AuthGate from "@/components/AuthGate";
+import CookieBanner from "@/components/CookieBanner";
 import { LanguageProvider } from "@/lib/LanguageContext";
 
 const geistSans = Geist({
@@ -29,6 +30,7 @@ export default function RootLayout({ children }) {
           <AuthGate>
             {children}
           </AuthGate>
+          <CookieBanner />
         </LanguageProvider>
         <Analytics />
       </body>
