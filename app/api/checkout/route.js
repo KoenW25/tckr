@@ -52,7 +52,7 @@ export async function POST(request) {
 
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('tickets')
-      .select('id, ask_price, status, reserved_for, reserved_until')
+      .select('id, ask_price, status, reserved_for, reserved_until, user_id')
       .eq('id', ticketId)
       .single();
 
@@ -60,6 +60,13 @@ export async function POST(request) {
       return Response.json(
         { error: 'Ticket niet gevonden.', detail: ticketError?.message },
         { status: 404 }
+      );
+    }
+
+    if (buyerId && ticket.user_id === buyerId) {
+      return Response.json(
+        { error: 'Je kan je eigen ticket niet kopen' },
+        { status: 403 }
       );
     }
 

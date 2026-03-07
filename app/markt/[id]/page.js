@@ -55,7 +55,7 @@ export default function EventDetailPage() {
 
         const { data: ticketsData } = await supabase
           .from('tickets')
-          .select('id, ask_price, status')
+          .select('id, ask_price, status, user_id')
           .eq('event_id', eventId)
           .eq('status', 'available')
           .not('ask_price', 'is', null)
@@ -208,6 +208,8 @@ export default function EventDetailPage() {
   const askPrices = tickets.map((tk) => Number(tk.ask_price));
   const lowestAsk = askPrices.length > 0 ? Math.min(...askPrices) : null;
   const cheapestTicket = tickets.find((tk) => Number(tk.ask_price) === lowestAsk);
+  const isOwnCheapestTicket =
+    Boolean(user?.id) && Boolean(cheapestTicket?.user_id) && user.id === cheapestTicket.user_id;
   const highestBid = bids.length > 0 ? Number(bids[0].bid_price) : null;
   const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
   const groupedBids = Object.values(
@@ -331,121 +333,123 @@ export default function EventDetailPage() {
           </div>
         </section>
 
-        {/* Prijsverloop grafiek */}
-        <section className="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
-          <div className="border-b border-slate-100 px-5 py-3">
-            <h2 className="text-sm font-semibold text-slate-900">{t('event.priceHistory', lang)}</h2>
-          </div>
-          <div className="p-5">
-            {priceChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={priceChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                  <defs>
-                    <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} width={50} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}
-                    formatter={(value) => [`€ ${formatPrice(value)}`, t('event.price', lang)]}
-                  />
-                  <Area type="monotone" dataKey="price" stroke="#0ea5e9" strokeWidth={2} fill="url(#priceGradient)" dot={{ r: 3, fill: '#0ea5e9', strokeWidth: 0 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-8 text-center text-xs text-slate-400">
-                {t('event.noPriceData', lang)}
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* Orderboek */}
-        <section className="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-            <h2 className="text-sm font-semibold text-slate-900">{t('event.orderbook', lang)}</h2>
-            {spread != null && (
-              <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                {t('event.spread', lang)}: € {formatPrice(spread)}
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 divide-x divide-slate-100">
-            {/* BID zijde (links) */}
-            <div>
-              <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                <span>{t('event.bidLabel', lang)}</span>
-                <span className="text-right">{t('event.volume', lang)}</span>
-              </div>
-              {groupedBids.length === 0 ? (
-                <div className="px-4 py-8 text-center text-xs text-slate-400">
-                  {t('event.noBids', lang)}
-                </div>
+        <div className="mb-8 grid gap-4 sm:grid-cols-2">
+          {/* Prijsverloop grafiek */}
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
+            <div className="border-b border-slate-100 px-5 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">{t('event.priceHistory', lang)}</h2>
+            </div>
+            <div className="p-5">
+              {priceChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={priceChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                    <defs>
+                      <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} width={50} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}
+                      formatter={(value) => [`€ ${formatPrice(value)}`, t('event.price', lang)]}
+                    />
+                    <Area type="monotone" dataKey="price" stroke="#0ea5e9" strokeWidth={2} fill="url(#priceGradient)" dot={{ r: 3, fill: '#0ea5e9', strokeWidth: 0 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
               ) : (
-                <div className="max-h-80 overflow-y-auto">
-                  {groupedBids.map((entry) => {
-                    const depthPct = maxGroupedBidCount > 0
-                      ? Math.round((entry.count / maxGroupedBidCount) * 100)
-                      : 50;
-                    return (
-                      <div key={entry.bidPrice} className="relative">
-                        <div
-                          className="absolute inset-y-0 right-0 bg-emerald-50"
-                          style={{ width: `${Math.min(depthPct, 100)}%` }}
-                        />
+                <p className="py-8 text-center text-xs text-slate-400">
+                  {t('event.noPriceData', lang)}
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* Orderboek */}
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">{t('event.orderbook', lang)}</h2>
+              {spread != null && (
+                <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                  {t('event.spread', lang)}: € {formatPrice(spread)}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 divide-x divide-slate-100">
+              {/* BID zijde (links) */}
+              <div>
+                <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                  <span>{t('event.bidLabel', lang)}</span>
+                  <span className="text-right">{t('event.volume', lang)}</span>
+                </div>
+                {groupedBids.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-slate-400">
+                    {t('event.noBids', lang)}
+                  </div>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto">
+                    {groupedBids.map((entry) => {
+                      const depthPct = maxGroupedBidCount > 0
+                        ? Math.round((entry.count / maxGroupedBidCount) * 100)
+                        : 50;
+                      return (
+                        <div key={entry.bidPrice} className="relative">
+                          <div
+                            className="absolute inset-y-0 right-0 bg-emerald-50"
+                            style={{ width: `${Math.min(depthPct, 100)}%` }}
+                          />
+                          <div className="relative grid grid-cols-2 px-4 py-1.5 text-xs">
+                            <span className="font-semibold text-emerald-700">
+                              € {formatPrice(entry.bidPrice)}
+                            </span>
+                            <span className="text-right text-emerald-600">
+                              {entry.count}x
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* ASK zijde (rechts) */}
+              <div>
+                <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                  <span>{t('event.askLabel', lang)}</span>
+                  <span className="text-right">{t('event.volume', lang)}</span>
+                </div>
+                {groupedAsks.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-slate-400">
+                    {t('event.noSupply', lang)}
+                  </div>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto">
+                    {groupedAsks.map((entry) => (
+                      <div key={entry.askPrice} className="relative">
+                        <div className="absolute inset-y-0 left-0 bg-rose-50" style={{ width: '100%' }} />
                         <div className="relative grid grid-cols-2 px-4 py-1.5 text-xs">
-                          <span className="font-semibold text-emerald-700">
-                            € {formatPrice(entry.bidPrice)}
+                          <span className="font-semibold text-rose-700">
+                            € {formatPrice(entry.askPrice)}
                           </span>
-                          <span className="text-right text-emerald-600">
+                          <span className="text-right text-rose-600">
                             {entry.count}x
                           </span>
                         </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                )}
+                <div className="px-4 py-2 text-center text-[10px] text-slate-400">
+                  {tickets.length} {t('event.offersAvailable', lang)}
                 </div>
-              )}
-            </div>
-
-            {/* ASK zijde (rechts) */}
-            <div>
-              <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                <span>{t('event.askLabel', lang)}</span>
-                <span className="text-right">{t('event.volume', lang)}</span>
-              </div>
-              {groupedAsks.length === 0 ? (
-                <div className="px-4 py-8 text-center text-xs text-slate-400">
-                  {t('event.noSupply', lang)}
-                </div>
-              ) : (
-                <div className="max-h-80 overflow-y-auto">
-                  {groupedAsks.map((entry) => (
-                    <div key={entry.askPrice} className="relative">
-                      <div className="absolute inset-y-0 left-0 bg-rose-50" style={{ width: '100%' }} />
-                      <div className="relative grid grid-cols-2 px-4 py-1.5 text-xs">
-                        <span className="font-semibold text-rose-700">
-                          € {formatPrice(entry.askPrice)}
-                        </span>
-                        <span className="text-right text-rose-600">
-                          {entry.count}x
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="px-4 py-2 text-center text-[10px] text-slate-400">
-                {tickets.length} {t('event.offersAvailable', lang)}
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         {/* Acties */}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -471,12 +475,22 @@ export default function EventDetailPage() {
                     <span className="font-semibold text-emerald-700">€ {formatPrice(calculateBuyerTotal(lowestAsk))}</span>
                   </div>
                 </div>
-                <Link
-                  href={`/checkout/${cheapestTicket.id}`}
-                  className="mt-4 block w-full rounded-full bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
-                >
-                  {t('event.buyFor', lang)} € {formatPrice(calculateBuyerTotal(lowestAsk))}
-                </Link>
+                {isOwnCheapestTicket ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
+                  >
+                    Jouw ticket
+                  </button>
+                ) : (
+                  <Link
+                    href={`/checkout/${cheapestTicket.id}`}
+                    className="mt-4 block w-full rounded-full bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
+                  >
+                    {t('event.buyFor', lang)} € {formatPrice(calculateBuyerTotal(lowestAsk))}
+                  </Link>
+                )}
               </>
             ) : (
               <p className="mt-3 text-xs text-slate-400">
