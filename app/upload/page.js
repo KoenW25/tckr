@@ -111,6 +111,8 @@ export default function UploadPage() {
   const [detectedTickets, setDetectedTickets] = useState([]);
   const [verificationState, setVerificationState] = useState(null);
   const [askPrice, setAskPrice] = useState('');
+  const [saleType, setSaleType] = useState('public');
+  const [privateBuyerEmail, setPrivateBuyerEmail] = useState('');
   const [savingAskPrice, setSavingAskPrice] = useState(false);
 
   useEffect(() => {
@@ -197,6 +199,8 @@ export default function UploadPage() {
     setTicketIds([]);
     setDetectedTickets([]);
     setVerificationState(null);
+    setSaleType('public');
+    setPrivateBuyerEmail('');
   };
 
   const handleEventInputChange = (value) => {
@@ -206,6 +210,8 @@ export default function UploadPage() {
     setTicketIds([]);
     setDetectedTickets([]);
     setVerificationState(null);
+    setSaleType('public');
+    setPrivateBuyerEmail('');
   };
 
   const handleOpenAddEvent = () => {
@@ -305,6 +311,8 @@ export default function UploadPage() {
     setTicketIds([]);
     setDetectedTickets([]);
     setVerificationState(null);
+    setSaleType('public');
+    setPrivateBuyerEmail('');
 
     if (!selectedFile) {
       setFile(null);
@@ -362,6 +370,8 @@ export default function UploadPage() {
     setTicketIds([]);
     setDetectedTickets([]);
     setVerificationState(null);
+    setSaleType('public');
+    setPrivateBuyerEmail('');
 
     try {
       const verification = await verifyTicketFile(file);
@@ -510,6 +520,8 @@ export default function UploadPage() {
 
       const insertedTicketIds = (insertData ?? []).map((row) => row.id).filter(Boolean);
       setTicketIds(insertedTicketIds);
+      setSaleType('public');
+      setPrivateBuyerEmail('');
       setSuccessMessage(
         verificationState.verificationWarning
           ? `Je tickets zijn geüpload! ${verificationState.verificationWarning}`
@@ -540,6 +552,15 @@ export default function UploadPage() {
       return;
     }
 
+    if (saleType === 'private') {
+      const normalizedEmail = String(privateBuyerEmail || '').trim().toLowerCase();
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+      if (!emailOk) {
+        setErrorMessage('Vul een geldig e-mailadres van de koper in.');
+        return;
+      }
+    }
+
     const numericPrice = Number(
       String(askPrice).replace(',', '.').replace(/[^0-9.]/g, '')
     );
@@ -559,7 +580,14 @@ export default function UploadPage() {
     try {
       const { error: updateError } = await supabase
         .from('tickets')
-        .update({ ask_price: numericPrice })
+        .update({
+          ask_price: numericPrice,
+          is_private: saleType === 'private',
+          private_buyer_email:
+            saleType === 'private'
+              ? String(privateBuyerEmail || '').trim().toLowerCase()
+              : null,
+        })
         .in('id', ticketIds);
 
       if (updateError) {
@@ -941,6 +969,43 @@ export default function UploadPage() {
             <p className="text-[11px] text-slate-400">
               {t('upload.tickSizeHint', lang)}
             </p>
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-medium text-slate-700">Verkooptype</p>
+              <label className="flex items-center gap-2 text-xs text-slate-700">
+                <input
+                  type="radio"
+                  name="saleType"
+                  checked={saleType === 'public'}
+                  onChange={() => setSaleType('public')}
+                  className="h-4 w-4 border-slate-300 text-sky-600 focus:ring-sky-500"
+                />
+                Openbaar op de markt
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-700">
+                <input
+                  type="radio"
+                  name="saleType"
+                  checked={saleType === 'private'}
+                  onChange={() => setSaleType('private')}
+                  className="h-4 w-4 border-slate-300 text-sky-600 focus:ring-sky-500"
+                />
+                Prive verkoop aan specifiek persoon
+              </label>
+            </div>
+
+            {saleType === 'private' ? (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-700">E-mailadres koper</label>
+                <input
+                  type="email"
+                  value={privateBuyerEmail}
+                  onChange={(e) => setPrivateBuyerEmail(e.target.value)}
+                  placeholder="koper@email.nl"
+                  className="w-full max-w-sm rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                />
+              </div>
+            ) : null}
+
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full max-w-xs">
                 <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-slate-400">
@@ -951,7 +1016,11 @@ export default function UploadPage() {
                   inputMode="decimal"
                   value={askPrice}
                   onChange={(e) => setAskPrice(e.target.value)}
-                  placeholder={t('upload.pricePlaceholder', lang)}
+                  placeholder={
+                    saleType === 'private'
+                      ? 'Afgesproken prijs'
+                      : t('upload.pricePlaceholder', lang)
+                  }
                   className="w-full rounded-full border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                 />
               </div>

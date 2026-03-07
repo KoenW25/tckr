@@ -48,9 +48,10 @@ export default function MarktPage() {
 
       const { data: tickets } = await supabase
         .from('tickets')
-        .select('id, event_id, ask_price, status, verified')
+        .select('id, event_id, ask_price, status, verified, is_private')
         .eq('status', 'available')
-        .not('ask_price', 'is', null);
+        .not('ask_price', 'is', null)
+        .or('is_private.is.null,is_private.eq.false');
 
       const ticketIds = (tickets ?? []).map((tk) => tk.id);
 

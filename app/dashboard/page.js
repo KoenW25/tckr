@@ -15,6 +15,8 @@ export default function DashboardPage() {
   const [loadingSellerTickets, setLoadingSellerTickets] = useState(true);
   const [ticketsError, setTicketsError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [sendingPrivateLinkId, setSendingPrivateLinkId] = useState(null);
+  const [privateLinkMessageByTicketId, setPrivateLinkMessageByTicketId] = useState({});
 
   const [purchasedTickets, setPurchasedTickets] = useState([]);
   const [loadingPurchased, setLoadingPurchased] = useState(true);
@@ -60,7 +62,7 @@ export default function DashboardPage() {
       try {
         const { data, error } = await supabase
           .from('tickets')
-          .select('id, pdf_url, status, ask_price, event_name, event_date, event_id, reserved_for, reserved_until')
+          .select('id, pdf_url, status, ask_price, event_name, event_date, event_id, reserved_for, reserved_until, is_private, private_buyer_email')
           .eq('user_id', user.id)
           .order('id', { ascending: false });
 
@@ -301,6 +303,45 @@ export default function DashboardPage() {
       setTicketsError(t('dash.deleteError', lang));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleSendPrivateLink = async (ticket) => {
+    setSendingPrivateLinkId(ticket.id);
+    setPrivateLinkMessageByTicketId((prev) => ({ ...prev, [ticket.id]: '' }));
+    setTicketsError(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setTicketsError('Je sessie is verlopen. Log opnieuw in.');
+        return;
+      }
+
+      const response = await fetch('/api/tickets/send-private-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ ticketId: ticket.id }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setTicketsError(json?.error || 'Versturen van betaallink mislukt.');
+        return;
+      }
+
+      setPrivateLinkMessageByTicketId((prev) => ({
+        ...prev,
+        [ticket.id]: 'Betaallink verstuurd!',
+      }));
+    } catch (err) {
+      console.error('Error sending private sale link:', err);
+      setTicketsError('Versturen van betaallink mislukt.');
+    } finally {
+      setSendingPrivateLinkId(null);
     }
   };
 
@@ -568,6 +609,16 @@ export default function DashboardPage() {
                                   {new Date(date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
                                 </span>
                               )}
+                              {ticket.is_private && (
+                                <div className="mt-1 space-y-1">
+                                  <span className="inline-block rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-200">
+                                    Prive verkoop
+                                  </span>
+                                  <p className="text-[10px] text-slate-500">
+                                    {ticket.private_buyer_email || 'Geen e-mailadres ingesteld'}
+                                  </p>
+                                </div>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-xs">
                               <TicketStatus ticket={ticket} lang={lang} />
@@ -577,16 +628,33 @@ export default function DashboardPage() {
                             </td>
                             <td className="px-3 py-2 text-right text-xs" onClick={(e) => e.stopPropagation()}>
                               {ticket.status === 'available' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteTicket(ticket)}
-                                  disabled={deletingId === ticket.id}
-                                  className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
-                                >
-                                  {deletingId === ticket.id ? t('dash.deleting', lang) : t('dash.delete', lang)}
-                                </button>
+                                <div className="flex justify-end gap-2">
+                                  {ticket.is_private ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSendPrivateLink(ticket)}
+                                      disabled={sendingPrivateLinkId === ticket.id}
+                                      className="rounded-full bg-violet-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-violet-500/30 hover:bg-violet-400 disabled:opacity-60"
+                                    >
+                                      {sendingPrivateLinkId === ticket.id ? 'Versturen...' : 'Stuur betaallink'}
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteTicket(ticket)}
+                                    disabled={deletingId === ticket.id}
+                                    className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
+                                  >
+                                    {deletingId === ticket.id ? t('dash.deleting', lang) : t('dash.delete', lang)}
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="text-[10px] text-slate-400">—</span>
+                              )}
+                              {privateLinkMessageByTicketId[ticket.id] && (
+                                <p className="mt-1 text-[10px] text-violet-700">
+                                  {privateLinkMessageByTicketId[ticket.id]}
+                                </p>
                               )}
                             </td>
                           </tr>
