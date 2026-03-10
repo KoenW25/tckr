@@ -32,6 +32,8 @@ export default function EventDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [bidError, setBidError] = useState('');
   const [bidSuccess, setBidSuccess] = useState('');
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState('');
 
   useEffect(() => {
     async function init() {
@@ -179,6 +181,47 @@ export default function EventDetailPage() {
       setBidError(t('event.bidError', lang));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleNotifyOnAvailability = async () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    setNotifyLoading(true);
+    setNotifyMessage('');
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setNotifyMessage('Je sessie is verlopen. Log opnieuw in.');
+        return;
+      }
+
+      const response = await fetch('/api/events/subscribe-availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ eventId }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setNotifyMessage(json?.error || 'Aanmelden voor melding mislukt.');
+        return;
+      }
+
+      setNotifyMessage('Je krijgt een mail zodra er een ticket beschikbaar is.');
+    } catch (err) {
+      console.error('Notify subscribe error:', err);
+      setNotifyMessage('Aanmelden voor melding mislukt.');
+    } finally {
+      setNotifyLoading(false);
     }
   };
 
@@ -496,6 +539,21 @@ export default function EventDetailPage() {
               <p className="mt-3 text-xs text-slate-400">
                 {t('event.noTicketsYet', lang)}
               </p>
+            )}
+            {lowestAsk == null && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handleNotifyOnAvailability}
+                  disabled={notifyLoading}
+                  className="w-full rounded-full border border-violet-200 bg-violet-50 px-4 py-2.5 text-xs font-semibold text-violet-700 hover:border-violet-300 hover:bg-violet-100 disabled:opacity-60"
+                >
+                  {notifyLoading ? 'Bezig met aanmelden...' : 'Mail mij zodra er aanbod is'}
+                </button>
+                {notifyMessage && (
+                  <p className="mt-2 text-xs text-slate-500">{notifyMessage}</p>
+                )}
+              </div>
             )}
           </div>
 

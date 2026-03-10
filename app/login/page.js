@@ -133,9 +133,7 @@ function LoginContent() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // For OAuth started from the browser client, Supabase PKCE code exchange
-          // should complete client-side on return to /login.
-          redirectTo: `${window.location.origin}/login`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 

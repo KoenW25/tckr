@@ -608,6 +608,26 @@ function UploadPageContent() {
         throw updateError;
       }
 
+      if (saleType === 'public') {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            await fetch('/api/events/notify-availability', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ ticketIds }),
+            });
+          }
+        } catch (notifyErr) {
+          console.error('Availability notify call failed:', notifyErr);
+        }
+      }
+
       setSuccessMessage(t('upload.savedToListed', lang));
       console.log('ask_price update succeeded for ticket', {
         ticketIds,

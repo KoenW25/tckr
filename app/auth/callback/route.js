@@ -64,13 +64,11 @@ export async function GET(request) {
 
   try {
     if (code) {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) {
-        console.error('[Auth Callback] exchangeCodeForSession failed:', error);
-        return NextResponse.redirect(new URL('/login', url.origin));
-      }
-      await sendWelcomeEmailForFirstLogin(supabase);
-      return NextResponse.redirect(new URL('/dashboard', url.origin));
+      // OAuth started from the browser client uses PKCE and should exchange
+      // the code client-side on /login where supabase-js has the verifier.
+      const loginUrl = new URL('/login', url.origin);
+      loginUrl.search = url.search;
+      return NextResponse.redirect(loginUrl);
     }
 
     if (tokenHash && type) {
