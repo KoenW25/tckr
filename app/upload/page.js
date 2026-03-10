@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { Suspense, useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
@@ -74,6 +74,20 @@ const COUNTRY_OPTIONS = [
 });
 
 export default function UploadPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center">
+          <p className="text-sm text-slate-500">Bezig met laden...</p>
+        </div>
+      }
+    >
+      <UploadPageContent />
+    </Suspense>
+  );
+}
+
+function UploadPageContent() {
   const isValidHalfEuroStep = (amount) => {
     const cents = Math.round(Number(amount) * 100);
     return Number.isFinite(cents) && cents % 50 === 0;
