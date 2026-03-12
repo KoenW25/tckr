@@ -10,15 +10,6 @@ function hasSupabaseSessionCookie(request) {
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
-  const host = request.headers.get('host') || '';
-
-  if (host.startsWith('www.tckr.nl')) {
-    const canonicalUrl = request.nextUrl.clone();
-    canonicalUrl.hostname = 'tckr.nl';
-    canonicalUrl.protocol = 'https';
-    return NextResponse.redirect(canonicalUrl, 308);
-  }
-
   const hasSession = hasSupabaseSessionCookie(request);
 
   if (pathname.startsWith('/login') && hasSession) {
