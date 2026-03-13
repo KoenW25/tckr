@@ -492,11 +492,7 @@ function UploadPageContent() {
         throw uploadError;
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from('tickets')
-        .getPublicUrl(uploadData.path);
-
-      const pdfUrl = publicUrlData?.publicUrl || uploadData.path;
+      const pdfUrl = uploadData.path;
 
       let eventDate = selectedEvent.date || null;
       if (eventDate && !/^\d{4}-\d{2}-\d{2}/.test(eventDate)) {

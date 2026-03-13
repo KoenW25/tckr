@@ -532,35 +532,43 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDownloadTicket = async (pdfUrl) => {
+  const handleDownloadTicket = async (ticket) => {
     const newTab = window.open('', '_blank');
 
-    const storageObject = extractStorageObjectFromUrl(pdfUrl);
-    if (!storageObject?.path || !storageObject?.bucket) {
-      if (newTab) newTab.location.href = pdfUrl;
-      return;
-    }
-
-    // Public storage objects can be opened directly and avoid bucket lookup mismatches.
-    if (storageObject.visibility === 'public' && storageObject.directUrl) {
-      if (newTab) newTab.location.href = storageObject.directUrl;
-      else window.location.href = storageObject.directUrl;
-      return;
-    }
-
     try {
-      const { data, error } = await supabase.storage
-        .from(storageObject.bucket)
-        .createSignedUrl(storageObject.path, 60);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Je sessie is verlopen. Log opnieuw in.');
+      }
 
-      if (error || !data?.signedUrl) throw error;
+      const response = await fetch('/api/tickets/download-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ ticketId: ticket.id }),
+      });
 
-      if (newTab) newTab.location.href = data.signedUrl;
-      else window.location.href = data.signedUrl;
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new Error(json?.error || 'Ticket downloaden mislukt.');
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      if (newTab) {
+        newTab.location.href = blobUrl;
+      } else {
+        window.location.href = blobUrl;
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } catch (err) {
-      console.error('Download error:', err, '| storage:', storageObject);
-      if (newTab) newTab.location.href = pdfUrl;
-      else window.location.href = pdfUrl;
+      console.error('Download error:', err, '| ticketId:', ticket?.id);
+      if (newTab) newTab.close();
+      setTicketsError(err?.message || 'Ticket downloaden mislukt.');
     }
   };
 
@@ -1038,7 +1046,7 @@ export default function DashboardPage() {
                               {ticket.pdf_url ? (
                                 <button
                                   type="button"
-                                  onClick={() => handleDownloadTicket(ticket.pdf_url)}
+                                  onClick={() => handleDownloadTicket(ticket)}
                                   className="rounded-full bg-sky-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400"
                                 >
                                   {t('dash.download', lang)}
