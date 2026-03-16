@@ -735,7 +735,7 @@ export default function EventDetailPage() {
           </div>
 
           {/* Bod plaatsen */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
+          <div id="biedformulier" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">{t('event.placeBid', lang)}</h3>
             <p className="mt-1 text-xs text-slate-500">
               {isExpired ? t('event.bidExpiredError', lang) : t('event.placeBidDesc', lang)}

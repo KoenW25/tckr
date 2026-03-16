@@ -95,12 +95,22 @@ export default function MarktPage() {
             bidPrices: [],
             count: 0,
             verifiedCount: 0,
+            lowestAsk: null,
+            cheapestTicketId: null,
           };
         }
-        ticketMap[t.event_id].askPrices.push(Number(t.ask_price));
+        const numericAskPrice = Number(t.ask_price);
+        ticketMap[t.event_id].askPrices.push(numericAskPrice);
         ticketMap[t.event_id].count++;
         if (t.verified === 'verified') {
           ticketMap[t.event_id].verifiedCount++;
+        }
+        if (
+          Number.isFinite(numericAskPrice) &&
+          (ticketMap[t.event_id].lowestAsk == null || numericAskPrice < ticketMap[t.event_id].lowestAsk)
+        ) {
+          ticketMap[t.event_id].lowestAsk = numericAskPrice;
+          ticketMap[t.event_id].cheapestTicketId = t.id;
         }
         if (ticketBidMap[t.id] != null) {
           ticketMap[t.event_id].bidPrices.push(ticketBidMap[t.id]);
@@ -108,13 +118,21 @@ export default function MarktPage() {
       }
 
       const cards = (events ?? []).map((ev) => {
-        const td = ticketMap[ev.id] || { askPrices: [], bidPrices: [], count: 0, verifiedCount: 0 };
+        const td = ticketMap[ev.id] || {
+          askPrices: [],
+          bidPrices: [],
+          count: 0,
+          verifiedCount: 0,
+          lowestAsk: null,
+          cheapestTicketId: null,
+        };
         const allBids = [...td.bidPrices, ...(eventBidMap[ev.id] || [])];
-        const lowestAsk = td.askPrices.length > 0 ? Math.min(...td.askPrices) : null;
+        const lowestAsk = td.lowestAsk;
         const highestBid = allBids.length > 0 ? Math.max(...allBids) : null;
         return {
           ...ev,
           lowestAsk,
+          cheapestTicketId: td.cheapestTicketId,
           highestBid,
           ticketCount: td.count,
           bidCount: allBids.length,
@@ -502,11 +520,15 @@ function EventCard({ event, lang }) {
     .join(' - ');
 
   return (
-    <Link href={`/markt/${eventToSlug(event)}`} className="block">
       <article className={`flex flex-col justify-between rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isExpired ? 'border-slate-100 bg-slate-50 opacity-60' : 'border-slate-200 bg-white shadow-slate-100'}`}>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h2 className={`text-sm font-semibold ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}>{event.name}</h2>
+            <Link
+              href={`/markt/${eventToSlug(event)}`}
+              className={`text-sm font-semibold hover:underline ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}
+            >
+              {event.name}
+            </Link>
             {event.verifiedCount > 0 && (
               <span
                 title={t('market.verified', lang)}
@@ -531,10 +553,7 @@ function EventCard({ event, lang }) {
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
           <div className="rounded-xl bg-rose-50 p-3 ring-1 ring-rose-100">
             <p className="uppercase tracking-[0.18em] text-rose-600">
-              <span>{t('market.ask', lang)}</span>{' '}
-              <span className="text-[9px] normal-case tracking-normal text-rose-400">
-                ({t('market.askDetail', lang)})
-              </span>
+              <span>{t('market.cardBuyNowFrom', lang)}</span>
             </p>
             <p className="mt-1 text-sm font-semibold text-rose-700">
               {event.lowestAsk != null ? `€ ${formatPrice(event.lowestAsk)}` : '—'}
@@ -545,10 +564,7 @@ function EventCard({ event, lang }) {
           </div>
           <div className="rounded-xl bg-sky-50 p-3 ring-1 ring-sky-100">
             <p className="uppercase tracking-[0.18em] text-sky-600">
-              <span>{t('market.bid', lang)}</span>{' '}
-              <span className="text-[9px] normal-case tracking-normal text-sky-400">
-                ({t('market.bidDetail', lang)})
-              </span>
+              <span>{t('market.cardHighestBid', lang)}</span>
             </p>
             <p className="mt-1 text-sm font-semibold text-sky-700">
               {event.highestBid != null ? `€ ${formatPrice(event.highestBid)}` : '—'}
@@ -559,6 +575,41 @@ function EventCard({ event, lang }) {
                 : t('market.noBids', lang)}
             </p>
           </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {hasTickets && event.cheapestTicketId && !isExpired ? (
+            <Link
+              href={`/checkout/${event.cheapestTicketId}`}
+              className="rounded-full bg-emerald-500 px-3 py-2 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
+            >
+              {t('market.buyTicketBtn', lang)}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-full bg-slate-200 px-3 py-2 text-xs font-semibold text-slate-500"
+            >
+              {t('market.buyTicketBtn', lang)}
+            </button>
+          )}
+          {!isExpired ? (
+            <Link
+              href={`/markt/${eventToSlug(event)}#biedformulier`}
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+            >
+              {t('market.placeBidBtn', lang)}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="cursor-not-allowed rounded-full border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-400"
+            >
+              {t('market.placeBidBtn', lang)}
+            </button>
+          )}
         </div>
 
         {hasTickets && (
@@ -576,11 +627,13 @@ function EventCard({ event, lang }) {
               ? `${event.ticketCount} ${event.ticketCount !== 1 ? t('market.ticketUnitPlural', lang) : t('market.ticketUnitSingular', lang)} ${t('market.ticketsAvailable', lang)}`
               : t('market.noTickets', lang)}
           </span>
-          <span className="font-medium uppercase tracking-[0.18em] text-slate-400">
+          <Link
+            href={`/markt/${eventToSlug(event)}`}
+            className="font-medium uppercase tracking-[0.18em] text-slate-400 hover:text-slate-500"
+          >
             {t('market.viewOrderbook', lang)}
-          </span>
+          </Link>
         </div>
       </article>
-    </Link>
   );
 }
