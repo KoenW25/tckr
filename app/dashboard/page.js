@@ -974,7 +974,7 @@ export default function DashboardPage() {
                                       onClick={() => handleStartEditTicketPrice(ticket)}
                                       className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-medium text-sky-700 hover:border-sky-300 hover:bg-sky-100"
                                     >
-                                      Prijs aanpassen
+                                      {t('dash.updatePrice', lang)}
                                     </button>
                                     <button
                                       type="button"

@@ -514,7 +514,7 @@ export default function EventDetailPage() {
                     onClick={handleOpenPriceEditor}
                     className="rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 transition hover:border-sky-300 hover:bg-sky-100"
                   >
-                    Prijs aanpassen
+                    {t('event.updatePrice', lang)}
                   </button>
                 )}
               </div>
@@ -543,7 +543,7 @@ export default function EventDetailPage() {
 
         {priceEditorOpen && ownAvailableTickets.length > 0 && (
           <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">Jouw aangeboden tickets</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('event.yourListedTickets', lang)}</h2>
             <div className="space-y-2">
               {ownAvailableTickets.map((ticket) => (
                 <div
@@ -551,7 +551,7 @@ export default function EventDetailPage() {
                   className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <p className="text-xs text-slate-500">
-                    Ticket #{ticket.id} · Huidige prijs: € {formatPrice(ticket.ask_price)}
+                    Ticket #{ticket.id} · {t('event.currentPrice', lang)}: € {formatPrice(ticket.ask_price)}
                   </p>
                   <div className="flex items-center gap-2">
                     <div className="relative w-28">
@@ -574,7 +574,7 @@ export default function EventDetailPage() {
                       disabled={savingPriceTicketId === ticket.id}
                       className="rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-400 disabled:opacity-60"
                     >
-                      {savingPriceTicketId === ticket.id ? 'Opslaan...' : 'Opslaan'}
+                      {savingPriceTicketId === ticket.id ? t('event.saving', lang) : t('event.save', lang)}
                     </button>
                   </div>
                 </div>
@@ -773,7 +773,7 @@ export default function EventDetailPage() {
                     disabled
                     className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
                   >
-                    Jouw ticket
+                    {t('event.ownTicket', lang)}
                   </button>
                 ) : (
                   <Link

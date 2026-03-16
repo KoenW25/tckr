@@ -285,7 +285,7 @@ export default function Navbar() {
                 onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
                 className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition"
               >
-                {lang === 'nl' ? 'EN' : 'NL'}
+                {lang === 'nl' ? '🇬🇧' : '🇳🇱'}
               </button>
               <button
                 type="button"
