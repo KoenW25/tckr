@@ -626,41 +626,91 @@ export default function EventDetailPage() {
         </section>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2">
-          {/* Prijsverloop grafiek */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
-            <div className="border-b border-slate-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">{t('event.priceHistory', lang)}</h2>
-            </div>
-            <div className="p-5">
-              {priceChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={priceChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                    <defs>
-                      <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} width={50} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}
-                      formatter={(value) => [`€ ${formatPrice(value)}`, t('event.price', lang)]}
-                    />
-                    <Area type="monotone" dataKey="price" stroke="#0ea5e9" strokeWidth={2} fill="url(#priceGradient)" dot={{ r: 3, fill: '#0ea5e9', strokeWidth: 0 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="py-8 text-center text-xs text-slate-400">
-                  {t('event.noPriceData', lang)}
+          {/* Direct kopen */}
+          <div className="order-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100 sm:order-3">
+            <h3 className="text-sm font-semibold text-slate-900">{t('event.buyNow', lang)}</h3>
+            {lowestAsk != null && cheapestTicket ? (
+              <>
+                <p className="mt-1 text-xs text-slate-500">
+                  {t('event.buyNowDesc', lang)}
                 </p>
-              )}
+                <div className="mt-3 space-y-1 text-xs text-slate-600">
+                  <div className="flex justify-between">
+                    <span>{t('event.ticketPrice', lang)}</span>
+                    <span className="font-medium text-slate-900">€ {formatPrice(lowestAsk)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t('event.serviceFees', lang)}</span>
+                    <span className="font-medium text-slate-900">€ {formatPrice(calculateServiceFee(lowestAsk))}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-100 pt-1">
+                    <span className="font-semibold text-slate-900">{t('event.total', lang)}</span>
+                    <span className="font-semibold text-emerald-700">€ {formatPrice(calculateBuyerTotal(lowestAsk))}</span>
+                  </div>
+                </div>
+                {isOwnCheapestTicket ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
+                  >
+                    {t('event.ownTicket', lang)}
+                  </button>
+                ) : (
+                  <Link
+                    href={`/checkout/${cheapestTicket.id}`}
+                    className="mt-4 block w-full rounded-full bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
+                  >
+                    {t('event.buyFor', lang)} € {formatPrice(calculateBuyerTotal(lowestAsk))}
+                  </Link>
+                )}
+              </>
+            ) : (
+              <p className="mt-3 text-xs text-slate-400">
+                {t('event.noTicketsYet', lang)}
+              </p>
+            )}
+          </div>
+
+          {/* Bod plaatsen */}
+          <div className="order-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100 sm:order-4">
+            <h3 className="text-sm font-semibold text-slate-900">{t('event.placeBid', lang)}</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              {isExpired ? t('event.bidExpiredError', lang) : t('event.placeBidDesc', lang)}
+            </p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              {t('event.tickSizeHint', lang)}
+            </p>
+            <div className="relative mt-3">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-slate-400">
+                €
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={bidAmount}
+                onChange={(e) => setBidAmount(e.target.value)}
+                placeholder={t('event.bidPlaceholder', lang)}
+                disabled={isExpired}
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+              />
             </div>
-          </section>
+
+            {bidError && <p className="mt-2 text-xs text-rose-600">{bidError}</p>}
+            {bidSuccess && <p className="mt-2 text-xs text-emerald-600">{bidSuccess}</p>}
+
+            <button
+              type="button"
+              onClick={handleSubmitBid}
+              disabled={submitting || isExpired}
+              className="mt-3 w-full rounded-full bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400 disabled:opacity-60"
+            >
+              {submitting ? t('event.submitting', lang) : t('event.placeBid', lang)}
+            </button>
+          </div>
 
           {/* Orderboek */}
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
+          <section className="order-3 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 sm:order-2">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
               <h2 className="text-sm font-semibold text-slate-900">{t('event.orderbook', lang)}</h2>
               {spread != null && (
@@ -741,92 +791,39 @@ export default function EventDetailPage() {
               </div>
             </div>
           </section>
-        </div>
 
-        {/* Acties */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Direct kopen */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
-            <h3 className="text-sm font-semibold text-slate-900">{t('event.buyNow', lang)}</h3>
-            {lowestAsk != null && cheapestTicket ? (
-              <>
-                <p className="mt-1 text-xs text-slate-500">
-                  {t('event.buyNowDesc', lang)}
-                </p>
-                <div className="mt-3 space-y-1 text-xs text-slate-600">
-                  <div className="flex justify-between">
-                    <span>{t('event.ticketPrice', lang)}</span>
-                    <span className="font-medium text-slate-900">€ {formatPrice(lowestAsk)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('event.serviceFees', lang)}</span>
-                    <span className="font-medium text-slate-900">€ {formatPrice(calculateServiceFee(lowestAsk))}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-slate-100 pt-1">
-                    <span className="font-semibold text-slate-900">{t('event.total', lang)}</span>
-                    <span className="font-semibold text-emerald-700">€ {formatPrice(calculateBuyerTotal(lowestAsk))}</span>
-                  </div>
-                </div>
-                {isOwnCheapestTicket ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
-                  >
-                    {t('event.ownTicket', lang)}
-                  </button>
-                ) : (
-                  <Link
-                    href={`/checkout/${cheapestTicket.id}`}
-                    className="mt-4 block w-full rounded-full bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
-                  >
-                    {t('event.buyFor', lang)} € {formatPrice(calculateBuyerTotal(lowestAsk))}
-                  </Link>
-                )}
-              </>
-            ) : (
-              <p className="mt-3 text-xs text-slate-400">
-                {t('event.noTicketsYet', lang)}
-              </p>
-            )}
-          </div>
-
-          {/* Bod plaatsen */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
-            <h3 className="text-sm font-semibold text-slate-900">{t('event.placeBid', lang)}</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              {isExpired ? t('event.bidExpiredError', lang) : t('event.placeBidDesc', lang)}
-            </p>
-            <p className="mt-1 text-[11px] text-slate-400">
-              {t('event.tickSizeHint', lang)}
-            </p>
-            <div className="relative mt-3">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-slate-400">
-                €
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={bidAmount}
-                onChange={(e) => setBidAmount(e.target.value)}
-                placeholder={t('event.bidPlaceholder', lang)}
-                disabled={isExpired}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
-              />
+          {/* Prijsverloop grafiek */}
+          <section className="order-4 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 sm:order-1">
+            <div className="border-b border-slate-100 px-5 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">{t('event.priceHistory', lang)}</h2>
             </div>
-
-            {bidError && <p className="mt-2 text-xs text-rose-600">{bidError}</p>}
-            {bidSuccess && <p className="mt-2 text-xs text-emerald-600">{bidSuccess}</p>}
-
-            <button
-              type="button"
-              onClick={handleSubmitBid}
-              disabled={submitting || isExpired}
-              className="mt-3 w-full rounded-full bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400 disabled:opacity-60"
-            >
-              {submitting ? t('event.submitting', lang) : t('event.placeBid', lang)}
-            </button>
-          </div>
+            <div className="p-5">
+              {priceChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={priceChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                    <defs>
+                      <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} width={50} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, boxShadow: '0 1px 3px rgba(0,0,0,.08)' }}
+                      formatter={(value) => [`€ ${formatPrice(value)}`, t('event.price', lang)]}
+                    />
+                    <Area type="monotone" dataKey="price" stroke="#0ea5e9" strokeWidth={2} fill="url(#priceGradient)" dot={{ r: 3, fill: '#0ea5e9', strokeWidth: 0 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="py-8 text-center text-xs text-slate-400">
+                  {t('event.noPriceData', lang)}
+                </p>
+              )}
+            </div>
+          </section>
         </div>
       </main>
     </div>
