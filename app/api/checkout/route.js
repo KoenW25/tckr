@@ -8,10 +8,16 @@ const supabaseAdmin = createClient(
 
 export async function POST(request) {
   try {
-    const { ticketId, bidId } = await request.json();
+    const { ticketId, ticketIds, bidId } = await request.json();
+    const requestedTicketIds = Array.isArray(ticketIds)
+      ? [...new Set(ticketIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0))]
+      : Number.isInteger(Number(ticketId)) && Number(ticketId) > 0
+        ? [Number(ticketId)]
+        : [];
+    const isMultiTicketCheckout = requestedTicketIds.length > 1;
 
-    if (!ticketId) {
-      return Response.json({ error: 'ticketId is verplicht.' }, { status: 400 });
+    if (requestedTicketIds.length === 0) {
+      return Response.json({ error: 'ticketId of ticketIds is verplicht.' }, { status: 400 });
     }
 
     // Buyer bepalen via auth header (server-side verificatie)
@@ -50,69 +56,83 @@ export async function POST(request) {
 
     console.log('[Checkout] buyerId resolved:', buyerId);
 
-    const { data: ticket, error: ticketError } = await supabaseAdmin
+    const { data: ticketsData, error: ticketsError } = await supabaseAdmin
       .from('tickets')
       .select('id, ask_price, status, reserved_for, reserved_until, user_id')
-      .eq('id', ticketId)
-      .single();
+      .in('id', requestedTicketIds);
 
-    if (ticketError || !ticket) {
+    if (ticketsError) {
       return Response.json(
-        { error: 'Ticket niet gevonden.', detail: ticketError?.message },
+        { error: 'Ticket niet gevonden.', detail: ticketsError?.message },
         { status: 404 }
       );
     }
+    const ticketsById = new Map((ticketsData ?? []).map((ticket) => [Number(ticket.id), ticket]));
+    const tickets = requestedTicketIds.map((id) => ticketsById.get(id)).filter(Boolean);
+    if (tickets.length !== requestedTicketIds.length) {
+      return Response.json({ error: 'Een of meer tickets zijn niet gevonden.' }, { status: 404 });
+    }
 
-    if (buyerId && ticket.user_id === buyerId) {
+    if (buyerId && tickets.some((ticket) => ticket.user_id === buyerId)) {
       return Response.json(
         { error: 'Je kan je eigen ticket niet kopen' },
         { status: 403 }
       );
     }
 
-    let paymentPrice = ticket.ask_price;
+    let lineItemPrices = tickets.map((ticket) => Number(ticket.ask_price));
 
-    if (ticket.status === 'reserved') {
-      if (ticket.reserved_until && new Date(ticket.reserved_until) < new Date()) {
+    if (isMultiTicketCheckout) {
+      if (tickets.some((ticket) => ticket.status !== 'available')) {
         return Response.json(
-          { error: 'De reservering voor dit ticket is verlopen.' },
+          { error: 'Een of meer tickets zijn niet meer beschikbaar.' },
           { status: 409 }
         );
       }
-
-      if (bidId) {
-        const { data: bid, error: bidError } = await supabaseAdmin
-          .from('bids')
-          .select('id, bid_price, status')
-          .eq('id', bidId)
-          .eq('ticket_id', ticketId)
-          .eq('status', 'accepted')
-          .single();
-
-        if (bidError || !bid) {
+    } else {
+      const ticket = tickets[0];
+      if (ticket.status === 'reserved') {
+        if (ticket.reserved_until && new Date(ticket.reserved_until) < new Date()) {
           return Response.json(
-            { error: 'Geaccepteerd bod niet gevonden.' },
-            { status: 404 }
+            { error: 'De reservering voor dit ticket is verlopen.' },
+            { status: 409 }
           );
         }
 
-        paymentPrice = bid.bid_price;
+        if (bidId) {
+          const { data: bid, error: bidError } = await supabaseAdmin
+            .from('bids')
+            .select('id, bid_price, status')
+            .eq('id', bidId)
+            .eq('ticket_id', ticket.id)
+            .eq('status', 'accepted')
+            .single();
+
+          if (bidError || !bid) {
+            return Response.json(
+              { error: 'Geaccepteerd bod niet gevonden.' },
+              { status: 404 }
+            );
+          }
+
+          lineItemPrices = [Number(bid.bid_price)];
+        }
+      } else if (ticket.status !== 'available') {
+        return Response.json(
+          { error: 'Dit ticket is niet meer beschikbaar.' },
+          { status: 409 }
+        );
       }
-    } else if (ticket.status !== 'available') {
-      return Response.json(
-        { error: 'Dit ticket is niet meer beschikbaar.' },
-        { status: 409 }
-      );
     }
 
-    if (paymentPrice == null || paymentPrice <= 0) {
+    if (lineItemPrices.some((price) => !Number.isFinite(price) || price <= 0)) {
       return Response.json(
-        { error: 'Dit ticket heeft geen geldige prijs.' },
+        { error: 'Een of meer tickets hebben geen geldige prijs.' },
         { status: 400 }
       );
     }
 
-    const totalAmount = calculateBuyerTotal(paymentPrice);
+    const totalAmount = lineItemPrices.reduce((sum, price) => sum + calculateBuyerTotal(price), 0);
     const mollieApiKey = process.env.MOLLIE_API_KEY;
 
     if (!mollieApiKey) {
@@ -136,10 +156,14 @@ export async function POST(request) {
         currency: 'EUR',
         value: totalAmount.toFixed(2),
       },
-      description: `Tckr – Ticket #${ticket.id}`,
+      description:
+        tickets.length === 1
+          ? `Tckr – Ticket #${tickets[0].id}`
+          : `Tckr – ${tickets.length} tickets`,
       redirectUrl: `${baseUrl}/betaling/succes`,
       metadata: {
-        ticketId: ticket.id,
+        ticketId: tickets[0].id,
+        ticketIds: tickets.map((ticket) => ticket.id).join(','),
         buyerId: buyerId,
       },
     };

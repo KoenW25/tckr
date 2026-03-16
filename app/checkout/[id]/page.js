@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
@@ -11,9 +11,12 @@ export default function CheckoutPage() {
   const { lang } = useLanguage();
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
 
   const [user, setUser] = useState(null);
   const [ticket, setTicket] = useState(null);
+  const [selectedTickets, setSelectedTickets] = useState([]);
   const [acceptedBid, setAcceptedBid] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,17 +30,70 @@ export default function CheckoutPage() {
           data: { session },
         } = await supabase.auth.getSession();
 
+        const params = new URLSearchParams(queryString);
+        const ticketIdsFromQuery = (params.get('ticketIds') || '')
+          .split(',')
+          .map((value) => Number(String(value).trim()))
+          .filter((value) => Number.isInteger(value) && value > 0);
+        const dedupedTicketIds = [...new Set(ticketIdsFromQuery)];
+        const requestedTicketIds =
+          dedupedTicketIds.length > 0
+            ? dedupedTicketIds
+            : Number.isInteger(Number(id)) && Number(id) > 0
+              ? [Number(id)]
+              : [];
+
         if (!session?.user) {
-          router.replace(`/login?next=/checkout/${id}`);
+          const nextPath = `/checkout/${id}${queryString ? `?${queryString}` : ''}`;
+          router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
           return;
         }
         const authUser = session.user;
         setUser(authUser);
 
+        if (requestedTicketIds.length === 0) {
+          setError(t('checkout.notFound', lang));
+          return;
+        }
+
+        if (requestedTicketIds.length > 1) {
+          const { data: ticketsData, error: ticketsError } = await supabase
+            .from('tickets')
+            .select('id, pdf_url, ask_price, status, user_id, event_name, event_date, reserved_for, reserved_until')
+            .in('id', requestedTicketIds);
+
+          if (ticketsError) throw ticketsError;
+
+          const ticketsById = new Map((ticketsData ?? []).map((row) => [Number(row.id), row]));
+          const orderedTickets = requestedTicketIds.map((ticketId) => ticketsById.get(ticketId)).filter(Boolean);
+
+          if (orderedTickets.length !== requestedTicketIds.length) {
+            setError(t('checkout.notFound', lang));
+            return;
+          }
+
+          const unavailableTicket = orderedTickets.find((row) => row.status !== 'available');
+          if (unavailableTicket) {
+            setError(t('checkout.unavailable', lang));
+            return;
+          }
+
+          const ownTicket = orderedTickets.find((row) => row.user_id === authUser.id);
+          if (ownTicket) {
+            setError(t('checkout.unavailable', lang));
+            return;
+          }
+
+          setSelectedTickets(orderedTickets);
+          setTicket(orderedTickets[0]);
+          setAcceptedBid(null);
+          return;
+        }
+
         const { data: ticketData, error: ticketError } = await supabase
           .from('tickets')
           .select('id, pdf_url, ask_price, status, user_id, event_name, event_date, reserved_for, reserved_until')
-          .eq('id', id)
+          .eq('id', requestedTicketIds[0])
           .single();
 
         if (ticketError) throw ticketError;
@@ -80,6 +136,7 @@ export default function CheckoutPage() {
         // }
 
         setTicket(ticketData);
+        setSelectedTickets([ticketData]);
       } catch (err) {
         console.error('Error loading checkout:', err);
         setError(t('checkout.loadError', lang));
@@ -89,7 +146,7 @@ export default function CheckoutPage() {
     }
 
     init();
-  }, [id, router]);
+  }, [id, lang, queryString, router]);
 
   useEffect(() => {
     if (!ticket || ticket.status !== 'reserved' || !ticket.reserved_until) return;
@@ -112,18 +169,28 @@ export default function CheckoutPage() {
     return () => clearInterval(interval);
   }, [ticket, lang]);
 
-  const isReservedForMe = ticket?.status === 'reserved' && ticket?.reserved_for === user?.id;
-  const effectivePrice = isReservedForMe && acceptedBid ? Number(acceptedBid.bid_price) : Number(ticket?.ask_price);
+  const isReservedForMe =
+    selectedTickets.length === 1 &&
+    ticket?.status === 'reserved' &&
+    ticket?.reserved_for === user?.id;
+  const effectivePrices = selectedTickets.map((selectedTicket) =>
+    isReservedForMe && acceptedBid
+      ? Number(acceptedBid.bid_price)
+      : Number(selectedTicket?.ask_price)
+  );
 
   const handlePay = async () => {
-    if (!ticket || !user) return;
+    if (!ticket || !user || selectedTickets.length === 0) return;
 
     setPaying(true);
     setError(null);
 
     try {
-      const body = { ticketId: ticket.id };
-      if (isReservedForMe && acceptedBid) {
+      const body =
+        selectedTickets.length > 1
+          ? { ticketIds: selectedTickets.map((selectedTicket) => selectedTicket.id) }
+          : { ticketId: ticket.id };
+      if (selectedTickets.length === 1 && isReservedForMe && acceptedBid) {
         body.bidId = acceptedBid.id;
       }
 
@@ -163,7 +230,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (error && !ticket) {
+  if (error && selectedTickets.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900">
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-center text-sm text-rose-700">
@@ -173,7 +240,7 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!ticket) {
+  if (!ticket || selectedTickets.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900">
         <p className="text-sm text-slate-500">{t('checkout.loading', lang)}</p>
@@ -181,8 +248,9 @@ export default function CheckoutPage() {
     );
   }
 
-  const fee = calculateServiceFee(effectivePrice);
-  const total = calculateBuyerTotal(effectivePrice);
+  const ticketSubtotal = effectivePrices.reduce((sum, price) => sum + Number(price || 0), 0);
+  const fee = effectivePrices.reduce((sum, price) => sum + calculateServiceFee(price), 0);
+  const total = effectivePrices.reduce((sum, price) => sum + calculateBuyerTotal(price), 0);
   const isExpired = timeLeft === t('checkout.expiredLabel', lang);
 
   return (
@@ -235,17 +303,27 @@ export default function CheckoutPage() {
           )}
 
           <div className="space-y-3 text-sm">
+            {selectedTickets.length > 1 && (
+              <div className="flex justify-between">
+                <span className="text-slate-600">{t('checkout.ticketCount', lang)}</span>
+                <span className="font-medium text-slate-900">{selectedTickets.length}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-slate-600">
-                {isReservedForMe ? t('checkout.acceptedBid', lang) : t('checkout.ticketPrice', lang)}
+                {isReservedForMe
+                  ? t('checkout.acceptedBid', lang)
+                  : selectedTickets.length > 1
+                    ? t('checkout.ticketPriceTotal', lang)
+                    : t('checkout.ticketPrice', lang)}
               </span>
               <span className="font-medium text-slate-900">
-                € {formatPrice(effectivePrice)}
+                € {formatPrice(ticketSubtotal)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600">
-                {t('checkout.serviceFees', lang)}
+                {selectedTickets.length > 1 ? t('checkout.serviceFeesTotal', lang) : t('checkout.serviceFees', lang)}
               </span>
               <span className="font-medium text-slate-900">
                 € {formatPrice(fee)}
@@ -262,7 +340,7 @@ export default function CheckoutPage() {
           </div>
 
           <p className="mt-4 text-[11px] text-slate-400">
-            {t('checkout.sellerReceives', lang)} € {formatPrice(effectivePrice)}. {t('checkout.buyerPays', lang)} € {formatPrice(fee)} {t('checkout.buyerPaysSuffix', lang)}
+            {t('checkout.sellerReceives', lang)} € {formatPrice(ticketSubtotal)}. {t('checkout.buyerPays', lang)} € {formatPrice(fee)} {t('checkout.buyerPaysSuffix', lang)}
           </p>
         </section>
 

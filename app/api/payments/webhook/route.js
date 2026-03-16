@@ -144,16 +144,29 @@ export async function POST(request) {
     console.log('[Mollie Webhook] Payment metadata:', JSON.stringify(payment.metadata));
 
     if (payment.status === 'paid') {
-      const ticketId = payment.metadata?.ticketId;
+      const metadataTicketIds = Array.isArray(payment.metadata?.ticketIds)
+        ? payment.metadata.ticketIds
+        : String(payment.metadata?.ticketIds || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+      const fallbackTicketId = payment.metadata?.ticketId;
+      const ticketIds = [
+        ...new Set(
+          [...metadataTicketIds, fallbackTicketId]
+            .map((value) => Number(value))
+            .filter((value) => Number.isInteger(value) && value > 0)
+        ),
+      ];
       const buyerId = payment.metadata?.buyerId;
       const privateBuyerEmail = payment.metadata?.privateBuyerEmail || null;
 
-      if (!ticketId) {
-        console.error('[Mollie Webhook] No ticketId in payment metadata');
+      if (ticketIds.length === 0) {
+        console.error('[Mollie Webhook] No ticketIds in payment metadata');
         return new Response('OK', { status: 200 });
       }
 
-      console.log('[Mollie Webhook] Updating ticket', ticketId, 'to sold, buyer:', buyerId);
+      console.log('[Mollie Webhook] Updating tickets', ticketIds, 'to sold, buyer:', buyerId);
 
       const updatePayload = { status: 'sold' };
       if (buyerId) {
@@ -163,7 +176,7 @@ export async function POST(request) {
       const { data, error } = await supabaseService
         .from('tickets')
         .update(updatePayload)
-        .eq('id', ticketId)
+        .in('id', ticketIds)
         .select();
 
       if (error) {
@@ -171,20 +184,20 @@ export async function POST(request) {
       } else {
         console.log('[Mollie Webhook] Ticket updated successfully:', JSON.stringify(data));
 
-        const ticket = data?.[0];
-        if (ticket) {
+        for (const ticket of data ?? []) {
           const eventName = ticket.event_name || 'Onbekend evenement';
-          const totalAmount = payment.amount?.value || ticket.ask_price || ticket.price;
+          const ticketAmount = ticket.ask_price || ticket.price || payment.amount?.value;
           const buyerUserId = buyerId || ticket.buyer_id;
           const sellerUserId = ticket.seller_id || ticket.user_id;
 
           if (ticket.event_id != null) {
             const soldPrice = Number(ticket.ask_price ?? ticket.price ?? payment.amount?.value ?? 0);
+            const txPaymentId = `${paymentId}-${ticket.id}`;
             const { error: txError } = await supabaseService
               .from('ticket_transactions')
               .upsert(
                 {
-                  payment_id: String(paymentId),
+                  payment_id: txPaymentId,
                   event_id: String(ticket.event_id),
                   ticket_id: String(ticket.id),
                   sold_price: Number.isFinite(soldPrice) ? soldPrice : 0,
@@ -213,7 +226,7 @@ export async function POST(request) {
             await sendBuyerConfirmationEmail(
               buyerEmail,
               eventName,
-              totalAmount,
+              ticketAmount,
               signedPdfUrl
             );
             console.log('[Mollie Webhook] Buyer confirmation email sent to', buyerEmail);
@@ -226,7 +239,7 @@ export async function POST(request) {
           // Send seller notification email
           if (sellerUserId) {
             const sellerEmail = await getUserEmailById(sellerUserId);
-            const sellerAmount = ticket.ask_price || ticket.price || totalAmount;
+            const sellerAmount = ticket.ask_price || ticket.price || ticketAmount;
             if (sellerEmail) {
               await sendSellerNotificationEmail(sellerEmail, eventName, sellerAmount);
               console.log('[Mollie Webhook] Seller notification email sent to', sellerEmail);

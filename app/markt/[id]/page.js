@@ -31,6 +31,7 @@ export default function EventDetailPage() {
   const [error, setError] = useState(null);
 
   const [bidAmount, setBidAmount] = useState('');
+  const [directBuyQuantity, setDirectBuyQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [bidError, setBidError] = useState('');
   const [bidSuccess, setBidSuccess] = useState('');
@@ -415,10 +416,31 @@ export default function EventDetailPage() {
 
   const askPrices = tickets.map((tk) => Number(tk.ask_price));
   const lowestAsk = askPrices.length > 0 ? Math.min(...askPrices) : null;
-  const cheapestTicket = tickets.find((tk) => Number(tk.ask_price) === lowestAsk);
-  const isOwnCheapestTicket =
-    Boolean(user?.id) && Boolean(cheapestTicket?.user_id) && user.id === cheapestTicket.user_id;
   const ownAvailableTickets = tickets.filter((ticket) => ticket.user_id === user?.id);
+  const purchasableTickets = tickets
+    .filter((ticket) => !user?.id || ticket.user_id !== user.id)
+    .sort((a, b) => Number(a.ask_price) - Number(b.ask_price));
+  const maxDirectBuyTickets = purchasableTickets.length;
+  const safeDirectBuyQuantity = Math.max(1, Math.min(directBuyQuantity, maxDirectBuyTickets || 1));
+  const selectedDirectBuyTickets = purchasableTickets.slice(0, safeDirectBuyQuantity);
+  const directBuyTicketSubtotal = selectedDirectBuyTickets.reduce(
+    (sum, ticket) => sum + Number(ticket.ask_price || 0),
+    0
+  );
+  const directBuyFeeTotal = selectedDirectBuyTickets.reduce(
+    (sum, ticket) => sum + calculateServiceFee(ticket.ask_price),
+    0
+  );
+  const directBuyTotal = selectedDirectBuyTickets.reduce(
+    (sum, ticket) => sum + calculateBuyerTotal(ticket.ask_price),
+    0
+  );
+  const directBuyCheckoutHref =
+    selectedDirectBuyTickets.length === 0
+      ? null
+      : selectedDirectBuyTickets.length === 1
+        ? `/checkout/${selectedDirectBuyTickets[0].id}`
+        : `/checkout/${selectedDirectBuyTickets[0].id}?ticketIds=${selectedDirectBuyTickets.map((ticket) => ticket.id).join(',')}`;
   const highestBid = bids.length > 0 ? Number(bids[0].bid_price) : null;
   const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
   const groupedBids = Object.values(
@@ -629,39 +651,53 @@ export default function EventDetailPage() {
           {/* Direct kopen */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">{t('event.buyNow', lang)}</h3>
-            {lowestAsk != null && cheapestTicket ? (
+            {selectedDirectBuyTickets.length > 0 ? (
               <>
                 <p className="mt-1 text-xs text-slate-500">
                   {t('event.buyNowDesc', lang)}
                 </p>
+                {maxDirectBuyTickets > 1 && (
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <label htmlFor="direct-buy-quantity" className="text-xs text-slate-600">
+                      {t('event.ticketCount', lang)}
+                    </label>
+                    <select
+                      id="direct-buy-quantity"
+                      value={safeDirectBuyQuantity}
+                      onChange={(e) => setDirectBuyQuantity(Number(e.target.value))}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                    >
+                      {Array.from({ length: maxDirectBuyTickets }, (_, index) => index + 1).map((count) => (
+                        <option key={count} value={count}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="mt-3 space-y-1 text-xs text-slate-600">
                   <div className="flex justify-between">
-                    <span>{t('event.ticketPrice', lang)}</span>
-                    <span className="font-medium text-slate-900">€ {formatPrice(lowestAsk)}</span>
+                    <span>{t('event.ticketPriceTotal', lang)}</span>
+                    <span className="font-medium text-slate-900">€ {formatPrice(directBuyTicketSubtotal)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>{t('event.serviceFees', lang)}</span>
-                    <span className="font-medium text-slate-900">€ {formatPrice(calculateServiceFee(lowestAsk))}</span>
+                    <span>{t('event.serviceFeesTotal', lang)}</span>
+                    <span className="font-medium text-slate-900">€ {formatPrice(directBuyFeeTotal)}</span>
                   </div>
                   <div className="flex justify-between border-t border-slate-100 pt-1">
                     <span className="font-semibold text-slate-900">{t('event.total', lang)}</span>
-                    <span className="font-semibold text-emerald-700">€ {formatPrice(calculateBuyerTotal(lowestAsk))}</span>
+                    <span className="font-semibold text-emerald-700">€ {formatPrice(directBuyTotal)}</span>
                   </div>
                 </div>
-                {isOwnCheapestTicket ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
-                  >
-                    {t('event.ownTicket', lang)}
-                  </button>
-                ) : (
+                <p className="mt-2 text-[11px] text-slate-400">
+                  {t('event.availableTicketsForYou', lang)}: {maxDirectBuyTickets} · {t('event.selectedAsks', lang)}
+                </p>
+                {directBuyCheckoutHref && (
                   <Link
-                    href={`/checkout/${cheapestTicket.id}`}
+                    href={directBuyCheckoutHref}
                     className="mt-4 block w-full rounded-full bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
                   >
-                    {t('event.buyFor', lang)} € {formatPrice(calculateBuyerTotal(lowestAsk))}
+                    {t('event.buyFor', lang)} € {formatPrice(directBuyTotal)}
                   </Link>
                 )}
               </>
