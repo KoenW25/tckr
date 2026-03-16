@@ -47,7 +47,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <LanguageProvider>
           <div className="flex min-h-screen flex-col">

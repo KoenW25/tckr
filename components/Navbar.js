@@ -194,7 +194,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
+      <header className="border-b border-slate-200 bg-white">
         <nav className="mx-auto max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3">
             <Link
@@ -241,40 +241,37 @@ export default function Navbar() {
                 )}
               </div>
 
-              <div className="hidden items-center gap-3 lg:flex">
+              <div className="hidden items-center gap-4 lg:flex">
                 <Link
                   href="/markt"
-                  className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400"
+                  className="text-sm text-slate-700 transition hover:text-slate-900"
                 >
                   {t('nav.market', lang)}
                 </Link>
-                {!loading && user && (
-                  <>
-                    <Link
-                      href="/upload"
-                      className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
-                    >
-                      {t('nav.sell', lang)}
-                    </Link>
-                    <Link
-                      href="/dashboard"
-                      className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                    >
-                      {t('nav.dashboard', lang)}
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-slate-900/30 transition hover:bg-slate-800"
-                    >
-                      {t('nav.logout', lang)}
-                    </button>
-                  </>
-                )}
-                {!loading && !user && (
+                <Link
+                  href="/dashboard"
+                  className="text-sm text-slate-700 transition hover:text-slate-900"
+                >
+                  {t('nav.dashboard', lang)}
+                </Link>
+                <Link
+                  href="/upload"
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-1.5 text-sm text-slate-800 transition hover:bg-slate-50"
+                >
+                  {t('nav.sell', lang)}
+                </Link>
+                {!loading && user ? (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-xl bg-slate-900 px-4 py-1.5 text-sm text-white transition hover:bg-slate-800"
+                  >
+                    {t('nav.logout', lang)}
+                  </button>
+                ) : (
                   <Link
                     href="/login"
-                    className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+                    className="rounded-xl bg-slate-900 px-4 py-1.5 text-sm text-white transition hover:bg-slate-800"
                   >
                     {t('nav.login', lang)}
                   </Link>
@@ -299,27 +296,27 @@ export default function Navbar() {
 
           {mobileMenuOpen && (
             <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-3 lg:hidden">
-              <Link href="/markt" className="rounded-full bg-sky-500 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white">
+              <Link href="/markt" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs text-slate-700">
                 {t('nav.market', lang)}
+              </Link>
+              <Link href="/dashboard" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs text-slate-700">
+                {t('nav.dashboard', lang)}
+              </Link>
+              <Link href="/upload" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs text-slate-700">
+                {t('nav.sell', lang)}
               </Link>
               {!loading && user ? (
                 <>
-                  <Link href="/upload" className="rounded-full bg-emerald-500 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white">
-                    {t('nav.sell', lang)}
-                  </Link>
-                  <Link href="/dashboard" className="rounded-full border border-slate-200 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-700">
-                    {t('nav.dashboard', lang)}
-                  </Link>
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="rounded-full bg-slate-900 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white"
+                    className="rounded-xl bg-slate-900 px-3 py-2 text-center text-xs text-white"
                   >
                     {t('nav.logout', lang)}
                   </button>
                 </>
               ) : (
-                <Link href="/login" className="rounded-full bg-emerald-500 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                <Link href="/login" className="rounded-xl bg-slate-900 px-3 py-2 text-center text-xs text-white">
                   {t('nav.login', lang)}
                 </Link>
               )}
@@ -330,7 +327,7 @@ export default function Navbar() {
 
       {/* Ticker regel */}
       {tickerEvents.length > 0 && (
-        <div className="border-b border-slate-200 bg-slate-900 text-xs text-emerald-300">
+        <div className="border-b border-slate-200 text-[10px] text-slate-700" style={{ backgroundColor: 'var(--color-background-secondary)' }}>
           <div
             className="ticker-hover-zone relative mx-auto max-w-6xl overflow-hidden px-4"
             onMouseEnter={() => setTickerPaused(true)}
@@ -345,7 +342,7 @@ export default function Navbar() {
             onTouchEnd={() => setTickerPaused(false)}
           >
             <div
-              className="ticker-track flex gap-12 py-2"
+            className="ticker-track flex gap-10 py-1.5"
               style={{
                 animationDuration: tickerDuration,
                 animationPlayState: tickerPaused ? 'paused' : 'running',
@@ -357,19 +354,19 @@ export default function Navbar() {
                     <Link
                       key={`${copy}-${event.id}`}
                       href={`/markt/${eventToSlug(event)}`}
-                      className="flex items-baseline gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+                    className="flex items-baseline gap-2 hover:opacity-80 transition-opacity cursor-pointer"
                     >
-                      <span className="text-slate-200 tracking-[0.18em] text-[11px]">
+                      <span className="tracking-[0.2em] text-[10px] text-slate-800">
                         {String(event?.name || t('nav.unknownEvent', lang)).toUpperCase()}
                       </span>
-                      <span className="font-semibold text-emerald-300">
+                      <span className="text-slate-700">
                         {t('nav.offer', lang).toUpperCase()} {event.price != null ? `€${event.price}` : '—'}
                       </span>
-                      <span className="text-[11px] text-emerald-400">
+                      <span className="text-[10px] text-slate-500">
                         {event.ticketCount} {event.ticketCount !== 1 ? t('nav.ticketsPlural', lang) : t('nav.tickets', lang)}
                       </span>
-                      <span className="text-slate-500">|</span>
-                      <span className="font-semibold text-sky-300">
+                      <span className="text-slate-400">|</span>
+                      <span className="text-slate-700">
                         {t('nav.bid', lang).toUpperCase()} {event.highestBid != null ? `€${event.highestBid}` : '—'}
                       </span>
                     </Link>

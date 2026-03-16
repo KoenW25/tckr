@@ -1,74 +1,33 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import supabase from '@/lib/supabase';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 
 export default function Home() {
   const { lang } = useLanguage();
-  const [showPopup, setShowPopup] = useState(false);
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [popupError, setPopupError] = useState('');
-
-  const handleReserveer = () => {
-    setShowPopup(true);
-    setSubmitted(false);
-    setEmail('');
-    setPopupError('');
-  };
-
-  const handleSubmitEmail = async (e) => {
-    e.preventDefault();
-
-    if (!email || !email.includes('@')) {
-      setPopupError(t('home.ctaInvalid', lang));
-      return;
-    }
-
-    setSubmitting(true);
-    setPopupError('');
-
-    try {
-      const { error } = await supabase
-        .from('waitlist')
-        .insert({ email });
-
-      if (error) {
-        if (error.code === '23505') {
-          setSubmitted(true);
-          return;
-        }
-        throw error;
-      }
-
-      setSubmitted(true);
-    } catch (err) {
-      console.error('Waitlist error:', err);
-      setPopupError(t('home.ctaError', lang));
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
-    <>
-      <div className="min-h-screen bg-white text-slate-900">
-        {/* Hero */}
-        <main className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-10 px-4 py-16 sm:px-6 lg:flex-row lg:py-24 lg:px-8">
-          <section className="flex-1 space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              {t('home.badge', lang)}
-            </div>
+    <div className="min-h-screen bg-white text-slate-900">
+      {/* Hero */}
+      <main className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-10 px-4 py-16 sm:px-6 lg:flex-row lg:py-24 lg:px-8">
+        <section className="flex-1 space-y-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            {t('home.badge', lang)}
+          </div>
 
             <div className="space-y-4">
               <h1 className="text-balance text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
                 {t('home.titlePart1', lang)}
-                <span className="block text-transparent bg-gradient-to-r from-sky-500 via-emerald-500 to-cyan-500 bg-clip-text">
+                <span
+                  className="block"
+                  style={{
+                    background: 'linear-gradient(90deg, #1a6b3c 0%, #00b894 50%, #0984e3 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
                   {t('home.titlePart2', lang)}
                 </span>
               </h1>
@@ -128,120 +87,47 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-600">
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
                   <div className="rounded-2xl bg-white p-3 shadow-sm shadow-slate-100">
                     <p className="uppercase tracking-[0.18em] text-slate-400">
-                      {t('home.ask', lang)}
+                      {t('market.cardBuyNowFrom', lang)}
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-500">
-                      +12%
+                    <p className="mt-1 text-sm font-semibold text-rose-600">
+                      €42
                     </p>
-                    <p className="text-slate-400">{t('home.vsOfficial', lang)}</p>
+                    <p className="text-slate-400">3 {t('home.ticketsLabel', lang).toLowerCase()}</p>
                   </div>
                   <div className="rounded-2xl bg-white p-3 shadow-sm shadow-slate-100">
                     <p className="uppercase tracking-[0.18em] text-slate-400">
-                      {t('home.ticketsLabel', lang)}
+                      {t('market.cardHighestBid', lang)}
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">
-                      47 {t('home.available', lang)}
+                    <p className="mt-1 text-sm font-semibold text-emerald-600">
+                      €35
                     </p>
-                    <p className="text-slate-400">{t('home.realtimeSupply', lang)}</p>
-                  </div>
-                  <div className="rounded-2xl bg-white p-3 shadow-sm shadow-slate-100">
-                    <p className="uppercase tracking-[0.18em] text-slate-400">
-                      {t('home.trust', lang)}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-emerald-500">
-                      4.9/5
-                    </p>
-                    <p className="text-slate-400">{t('home.basedOnBuyers', lang)}</p>
+                    <p className="text-slate-400">2 {t('market.bidUnitPlural', lang)}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
-                <span>{t('home.ctaTitle', lang)}</span>
-                <button
-                  type="button"
-                  onClick={handleReserveer}
-                  className="rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-emerald-400"
-                >
-                  {t('home.ctaReserve', lang)}
-                </button>
+              <Link
+                href="/markt"
+                className="mt-4 block rounded-2xl bg-slate-900 px-3 py-2 text-center text-base text-white transition hover:bg-slate-800"
+              >
+                {t('market.buyTicketBtn', lang)} →
+              </Link>
+
+              <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-700">
+                <Link href="/markt" className="hover:text-slate-900">
+                  {t('market.placeBidBtn', lang)}
+                </Link>
+                <Link href="/markt" className="text-right hover:text-slate-900">
+                  {t('market.viewOrderbook', lang)}
+                </Link>
               </div>
+
             </div>
           </aside>
-        </main>
-      </div>
-
-      {/* Email popup */}
-      {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-xl">
-            {submitted ? (
-              <div className="space-y-4 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-lg">
-                  ✓
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  {t('home.ctaOnList', lang)}
-                </h3>
-                <p className="text-sm text-slate-600">
-                  {t('home.ctaOnListSub', lang)}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowPopup(false)}
-                  className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
-                >
-                  {t('home.ctaClose', lang)}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-900">
-                    {t('home.ctaReserve', lang)}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowPopup(false)}
-                    className="text-slate-400 hover:text-slate-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <p className="text-sm text-slate-600">
-                  {t('home.ctaSub', lang)}
-                </p>
-
-                {popupError && (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                    {popupError}
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmitEmail} className="space-y-3">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="jij@example.com"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
-                  >
-                    {submitting ? t('home.ctaSubmitting', lang) : t('home.ctaSubmit', lang)}
-                  </button>
-                </form>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+      </main>
+    </div>
   );
 }

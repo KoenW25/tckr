@@ -2,11 +2,13 @@
 
 :root {
   --background: #ffffff;
+  --background-secondary: #f8fafc;
   --foreground: #171717;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -16,7 +18,30 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-weight: 400;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500 !important;
+}
+
+b,
+strong {
+  font-weight: 500 !important;
+}
+
+.font-medium,
+.font-semibold,
+.font-bold,
+.font-extrabold,
+.font-black {
+  font-weight: 500 !important;
 }
 
 @keyframes ticker-move {
