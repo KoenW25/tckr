@@ -35,15 +35,31 @@ function formatEventDaySummary(dayValues, locale = 'nl-NL') {
       : null;
   }
   if (uniqueDays.length <= 3) {
-    return uniqueDays
-      .map((value) => {
-        const parsed = parseSafeDate(value);
-        return parsed ? parsed.toLocaleDateString(locale, {
+    const parsedDays = uniqueDays.map((value) => parseSafeDate(value)).filter(Boolean);
+    if (parsedDays.length === 0) return null;
+
+    const first = parsedDays[0];
+    const sameMonthAndYear = parsedDays.every(
+      (date) => date.getMonth() === first.getMonth() && date.getFullYear() === first.getFullYear()
+    );
+
+    if (sameMonthAndYear) {
+      const dayNumbers = parsedDays.map((date) => date.getDate()).join(', ');
+      const monthYear = first.toLocaleDateString(locale, {
+        month: 'long',
+        year: 'numeric',
+      });
+      return `${dayNumbers} ${monthYear}`;
+    }
+
+    return parsedDays
+      .map((date) =>
+        date.toLocaleDateString(locale, {
           day: 'numeric',
           month: 'short',
-        }) : null;
-      })
-      .filter(Boolean)
+          year: 'numeric',
+        })
+      )
       .join(', ');
   }
 
