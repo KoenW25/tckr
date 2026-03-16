@@ -420,9 +420,15 @@ export default function EventDetailPage() {
   const purchasableTickets = tickets
     .filter((ticket) => !user?.id || ticket.user_id !== user.id)
     .sort((a, b) => Number(a.ask_price) - Number(b.ask_price));
-  const maxDirectBuyTickets = purchasableTickets.length;
+  const ownTicketsSortedByAsk = [...ownAvailableTickets].sort(
+    (a, b) => Number(a.ask_price) - Number(b.ask_price)
+  );
+  const hasPurchasableTickets = purchasableTickets.length > 0;
+  const isDirectBuyOwnOnly = !hasPurchasableTickets && ownTicketsSortedByAsk.length > 0 && Boolean(user?.id);
+  const directBuySourceTickets = hasPurchasableTickets ? purchasableTickets : ownTicketsSortedByAsk;
+  const maxDirectBuyTickets = directBuySourceTickets.length;
   const safeDirectBuyQuantity = Math.max(1, Math.min(directBuyQuantity, maxDirectBuyTickets || 1));
-  const selectedDirectBuyTickets = purchasableTickets.slice(0, safeDirectBuyQuantity);
+  const selectedDirectBuyTickets = directBuySourceTickets.slice(0, safeDirectBuyQuantity);
   const directBuyTicketSubtotal = selectedDirectBuyTickets.reduce(
     (sum, ticket) => sum + Number(ticket.ask_price || 0),
     0
@@ -436,7 +442,7 @@ export default function EventDetailPage() {
     0
   );
   const directBuyCheckoutHref =
-    selectedDirectBuyTickets.length === 0
+    selectedDirectBuyTickets.length === 0 || isDirectBuyOwnOnly
       ? null
       : selectedDirectBuyTickets.length === 1
         ? `/checkout/${selectedDirectBuyTickets[0].id}`
@@ -692,27 +698,25 @@ export default function EventDetailPage() {
                 <p className="mt-2 text-[11px] text-slate-400">
                   {t('event.availableTicketsForYou', lang)}: {maxDirectBuyTickets} · {t('event.selectedAsks', lang)}
                 </p>
-                {directBuyCheckoutHref && (
+                {isDirectBuyOwnOnly && (
+                  <p className="mt-2 text-[11px] text-slate-500">{t('event.onlyOwnTickets', lang)}</p>
+                )}
+                {directBuyCheckoutHref ? (
                   <Link
                     href={directBuyCheckoutHref}
                     className="mt-4 block w-full rounded-full bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
                   >
                     {t('event.buyFor', lang)} € {formatPrice(directBuyTotal)}
                   </Link>
-                )}
-              </>
-            ) : tickets.length > 0 && user?.id ? (
-              <>
-                <p className="mt-3 text-xs text-slate-500">
-                  {t('event.onlyOwnTickets', lang)}
-                </p>
-                <button
-                  type="button"
-                  disabled
-                  className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
-                >
-                  {t('event.ownTicket', lang)}
-                </button>
+                ) : isDirectBuyOwnOnly ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
+                  >
+                    {safeDirectBuyQuantity > 1 ? t('event.ownTickets', lang) : t('event.ownTicket', lang)}
+                  </button>
+                ) : null}
               </>
             ) : (
               <p className="mt-3 text-xs text-slate-400">
