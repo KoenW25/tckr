@@ -200,6 +200,7 @@ export async function POST(request) {
                   payment_id: txPaymentId,
                   event_id: String(ticket.event_id),
                   ticket_id: String(ticket.id),
+                  event_day_id: ticket.event_day_id ?? null,
                   sold_price: Number.isFinite(soldPrice) ? soldPrice : 0,
                   sold_at: payment.paidAt || new Date().toISOString(),
                   buyer_id: buyerUserId || null,

@@ -50,6 +50,23 @@ export default function Navbar() {
 
       if (error || !events || events.length === 0) return;
 
+      const eventIds = events.map((event) => Number(event.id)).filter((value) => Number.isInteger(value));
+      const { data: eventDays } = eventIds.length
+        ? await supabase
+            .from('event_days')
+            .select('id, event_id, day_date')
+            .in('event_id', eventIds)
+            .order('day_date', { ascending: true })
+        : { data: [] };
+
+      const dayMap = {};
+      for (const day of eventDays ?? []) {
+        const eventId = Number(day.event_id);
+        if (!Number.isInteger(eventId)) continue;
+        if (!dayMap[eventId]) dayMap[eventId] = [];
+        dayMap[eventId].push(day.day_date);
+      }
+
       const today = new Date(new Date().toDateString());
       const isNotExpired = (value) => {
         if (!value) return true;
@@ -57,7 +74,11 @@ export default function Navbar() {
         if (Number.isNaN(parsed.getTime())) return true;
         return parsed >= today;
       };
-      const tickerSourceEvents = events.filter((ev) => isNotExpired(ev?.date));
+      const tickerSourceEvents = events.filter((ev) => {
+        const days = dayMap[ev.id] ?? (ev?.date ? [String(ev.date).slice(0, 10)] : []);
+        const lastDay = days.length > 0 ? days[days.length - 1] : ev?.date;
+        return isNotExpired(lastDay);
+      });
 
       const { data: tickets } = await supabase
         .from('tickets')
@@ -72,11 +93,11 @@ export default function Navbar() {
         priceMap[ticket.event_id].push(Number(ticket.ask_price));
       }
 
-      const eventIds = tickerSourceEvents.map((e) => e.id);
+      const tickerEventIds = tickerSourceEvents.map((e) => e.id);
       const { data: bidsData } = await supabase
         .from('bids')
         .select('event_id, bid_price')
-        .in('event_id', eventIds)
+        .in('event_id', tickerEventIds)
         .eq('status', 'pending');
 
       const bidMap = {};
@@ -94,6 +115,12 @@ export default function Navbar() {
         return {
           id: ev.id,
           name: ev.name,
+          dayLabel: (dayMap[ev.id] ?? []).length
+            ? new Date(`${dayMap[ev.id][0]}T00:00:00`).toLocaleDateString(lang === 'nl' ? 'nl-NL' : 'en-GB', {
+                day: 'numeric',
+                month: 'short',
+              })
+            : null,
           price: lowestPrice,
           highestBid,
           ticketCount: prices.length,
@@ -359,6 +386,9 @@ export default function Navbar() {
                       <span className="tracking-[0.2em] text-[10px] text-slate-800">
                         {String(event?.name || t('nav.unknownEvent', lang)).toUpperCase()}
                       </span>
+                      {event.dayLabel ? (
+                        <span className="text-[10px] text-slate-500">{event.dayLabel}</span>
+                      ) : null}
                       <span className="text-slate-700">
                         {t('nav.offer', lang).toUpperCase()} {event.price != null ? `€${event.price}` : '—'}
                       </span>

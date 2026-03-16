@@ -108,8 +108,10 @@ function UploadPageContent() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const [events, setEvents] = useState([]);
+  const [eventDaysByEventId, setEventDaysByEventId] = useState({});
   const [eventSearch, setEventSearch] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEventDayId, setSelectedEventDayId] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const eventInputRef = useRef(null);
 
@@ -180,6 +182,22 @@ function UploadPageContent() {
 
       if (!error && data) {
         setEvents(data);
+        const eventIds = data.map((event) => Number(event.id)).filter((value) => Number.isInteger(value));
+        if (eventIds.length > 0) {
+          const { data: eventDays } = await supabase
+            .from('event_days')
+            .select('id, event_id, day_date, label')
+            .in('event_id', eventIds)
+            .order('day_date', { ascending: true });
+          const grouped = {};
+          for (const day of eventDays ?? []) {
+            const eventId = Number(day.event_id);
+            if (!Number.isInteger(eventId)) continue;
+            if (!grouped[eventId]) grouped[eventId] = [];
+            grouped[eventId].push(day);
+          }
+          setEventDaysByEventId(grouped);
+        }
       }
     }
     fetchEvents();
@@ -193,9 +211,19 @@ function UploadPageContent() {
     if (preselected) {
       setSelectedEvent(preselected);
       setEventSearch(preselected.name);
+      const eventDays = eventDaysByEventId[Number(preselected.id)] ?? [];
+      setSelectedEventDayId(eventDays[0]?.id ? String(eventDays[0].id) : '');
       setShowDropdown(false);
     }
-  }, [searchParams, events, selectedEvent]);
+  }, [searchParams, events, selectedEvent, eventDaysByEventId]);
+
+  useEffect(() => {
+    if (!selectedEvent || selectedEventDayId) return;
+    const eventDays = eventDaysByEventId[Number(selectedEvent.id)] ?? [];
+    if (eventDays[0]?.id) {
+      setSelectedEventDayId(String(eventDays[0].id));
+    }
+  }, [selectedEvent, selectedEventDayId, eventDaysByEventId]);
 
   useEffect(() => {
     const shouldOpenAddEvent = searchParams.get('openAddEvent') === 'true';
@@ -224,6 +252,8 @@ function UploadPageContent() {
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
     setEventSearch(event.name);
+    const eventDays = eventDaysByEventId[Number(event.id)] ?? [];
+    setSelectedEventDayId(eventDays[0]?.id ? String(eventDays[0].id) : '');
     setShowDropdown(false);
     setTicketIds([]);
     setDetectedTickets([]);
@@ -235,6 +265,7 @@ function UploadPageContent() {
   const handleEventInputChange = (value) => {
     setEventSearch(value);
     setSelectedEvent(null);
+    setSelectedEventDayId('');
     setShowDropdown(true);
     setTicketIds([]);
     setDetectedTickets([]);
@@ -289,6 +320,19 @@ function UploadPageContent() {
       setEvents((prev) => [...prev, data]);
       setSelectedEvent(data);
       setEventSearch(data.name);
+      const { data: createdDay } = await supabase
+        .from('event_days')
+        .insert({
+          event_id: data.id,
+          day_date: String(newEventDate).slice(0, 10),
+        })
+        .select('id, event_id, day_date, label')
+        .single();
+      setEventDaysByEventId((prev) => ({
+        ...prev,
+        [data.id]: createdDay ? [createdDay] : [],
+      }));
+      setSelectedEventDayId(createdDay?.id ? String(createdDay.id) : '');
       setShowAddEvent(false);
     } catch (err) {
       console.error('Add event error:', err);
@@ -387,6 +431,10 @@ function UploadPageContent() {
       setErrorMessage('Kies een event uit de lijst.');
       return;
     }
+    if (!selectedEventDayId) {
+      setErrorMessage(t('upload.errEventDay', lang));
+      return;
+    }
 
     if (!file) {
       setErrorMessage('Selecteer eerst een PDF-bestand.');
@@ -451,6 +499,10 @@ function UploadPageContent() {
       setErrorMessage('Kies een event uit de lijst.');
       return;
     }
+    if (!selectedEventDayId) {
+      setErrorMessage(t('upload.errEventDay', lang));
+      return;
+    }
     if (!file) {
       setErrorMessage('Selecteer eerst een PDF-bestand.');
       return;
@@ -510,6 +562,7 @@ function UploadPageContent() {
               user_id: user.id,
               pdf_url: pdfUrl,
               event_id: selectedEvent.id,
+              event_day_id: Number(selectedEventDayId),
               event_name: selectedEvent.name,
               event_date: eventDate,
               status: 'available',
@@ -522,6 +575,7 @@ function UploadPageContent() {
                 user_id: user.id,
                 pdf_url: pdfUrl,
                 event_id: selectedEvent.id,
+                event_day_id: Number(selectedEventDayId),
                 event_name: selectedEvent.name,
                 event_date: eventDate,
                 status: 'available',
@@ -743,7 +797,7 @@ function UploadPageContent() {
             {showDropdown && eventSearch.trim() && filteredEvents.length === 0 && !showAddEvent && (
               <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
                 <p className="mb-2 text-center text-xs text-slate-400">
-                  Geen events gevonden voor "{eventSearch}"
+                  Geen events gevonden voor &quot;{eventSearch}&quot;
                 </p>
                 <button
                   type="button"
@@ -867,6 +921,27 @@ function UploadPageContent() {
                     : ''}
                 </p>
               </div>
+            </div>
+          )}
+
+          {selectedEvent && (eventDaysByEventId[Number(selectedEvent.id)] ?? []).length > 0 && (
+            <div className="mt-3">
+              <label className="text-xs font-medium text-slate-700">{t('upload.eventDay', lang)}</label>
+              <select
+                value={selectedEventDayId}
+                onChange={(e) => setSelectedEventDayId(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+              >
+                {(eventDaysByEventId[Number(selectedEvent.id)] ?? []).map((day) => (
+                  <option key={day.id} value={String(day.id)}>
+                    {new Date(`${day.day_date}T00:00:00`).toLocaleDateString('nl-NL', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </section>

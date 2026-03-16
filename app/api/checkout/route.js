@@ -58,7 +58,7 @@ export async function POST(request) {
 
     const { data: ticketsData, error: ticketsError } = await supabaseAdmin
       .from('tickets')
-      .select('id, ask_price, status, reserved_for, reserved_until, user_id')
+      .select('id, ask_price, status, reserved_for, reserved_until, user_id, event_day_id')
       .in('id', requestedTicketIds);
 
     if (ticketsError) {
@@ -164,6 +164,10 @@ export async function POST(request) {
       metadata: {
         ticketId: tickets[0].id,
         ticketIds: tickets.map((ticket) => ticket.id).join(','),
+        ticketDayIds: tickets
+          .map((ticket) => Number(ticket.event_day_id))
+          .filter((value) => Number.isInteger(value) && value > 0)
+          .join(','),
         buyerId: buyerId,
       },
     };

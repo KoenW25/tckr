@@ -21,10 +21,12 @@ export default function Home() {
               <h1 className="text-balance text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
                 {t('home.titlePart1', lang)}
                 <span
-                  className="block"
+                  className="block bg-clip-text text-transparent"
                   style={{
                     background: 'linear-gradient(90deg, #1a6b3c 0%, #00b894 50%, #0984e3 100%)',
+                    backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
+                    color: 'transparent',
                     WebkitTextFillColor: 'transparent',
                   }}
                 >

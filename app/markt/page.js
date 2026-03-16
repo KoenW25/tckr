@@ -8,6 +8,59 @@ import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, formatPrice } from '@/lib/fees';
 import { eventToSlug } from '@/lib/eventSlug';
 
+function parseSafeDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00` : raw;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatEventDaySummary(dayValues, locale = 'nl-NL') {
+  if (!Array.isArray(dayValues) || dayValues.length === 0) return null;
+  const uniqueDays = [...new Set(dayValues.filter(Boolean))].sort();
+  if (uniqueDays.length === 0) return null;
+  if (uniqueDays.length === 1) {
+    const parsed = parseSafeDate(uniqueDays[0]);
+    return parsed
+      ? parsed.toLocaleDateString(locale, {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : null;
+  }
+  if (uniqueDays.length <= 3) {
+    return uniqueDays
+      .map((value) => {
+        const parsed = parseSafeDate(value);
+        return parsed ? parsed.toLocaleDateString(locale, {
+          day: 'numeric',
+          month: 'short',
+        }) : null;
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  const first = uniqueDays[0];
+  const last = uniqueDays[uniqueDays.length - 1];
+  const firstDate = parseSafeDate(first);
+  const lastDate = parseSafeDate(last);
+  if (!firstDate || !lastDate) return null;
+  return `${firstDate.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+  })} - ${lastDate.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+  })}`;
+}
+
 export default function MarktPage() {
   const { lang } = useLanguage();
   const [eventCards, setEventCards] = useState([]);
@@ -47,9 +100,26 @@ export default function MarktPage() {
 
       if (eventsErr) throw eventsErr;
 
+      const eventIds = (events ?? []).map((e) => Number(e.id)).filter((value) => Number.isInteger(value));
+      const { data: eventDays } = eventIds.length
+        ? await supabase
+            .from('event_days')
+            .select('id, event_id, day_date, label')
+            .in('event_id', eventIds)
+            .order('day_date', { ascending: true })
+        : { data: [] };
+
+      const dayMap = {};
+      for (const day of eventDays ?? []) {
+        const eventId = Number(day.event_id);
+        if (!Number.isInteger(eventId)) continue;
+        if (!dayMap[eventId]) dayMap[eventId] = [];
+        dayMap[eventId].push(day);
+      }
+
       const { data: tickets } = await supabase
         .from('tickets')
-        .select('id, event_id, ask_price, status, verified, is_private')
+        .select('id, event_id, event_day_id, ask_price, status, verified, is_private')
         .eq('status', 'available')
         .not('ask_price', 'is', null)
         .or('is_private.is.null,is_private.eq.false');
@@ -71,12 +141,11 @@ export default function MarktPage() {
         }
       }
 
-      const eventIds = (events ?? []).map((e) => e.id);
       let eventBidMap = {};
       if (eventIds.length > 0) {
         const { data: eventBids } = await supabase
           .from('bids')
-          .select('event_id, bid_price')
+          .select('event_id, event_day_id, bid_price')
           .in('event_id', eventIds)
           .eq('status', 'pending');
 
@@ -129,6 +198,19 @@ export default function MarktPage() {
         const allBids = [...td.bidPrices, ...(eventBidMap[ev.id] || [])];
         const lowestAsk = td.lowestAsk;
         const highestBid = allBids.length > 0 ? Math.max(...allBids) : null;
+        const eventDayRows = dayMap[ev.id] ?? [];
+        const dayValues =
+          eventDayRows.length > 0
+            ? eventDayRows.map((day) => day.day_date).filter(Boolean)
+            : ev.date
+              ? [String(ev.date).slice(0, 10)]
+              : [];
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const defaultDayDate =
+          dayValues.find((value) => value >= todayIso) ||
+          dayValues[0] ||
+          null;
+        const lastDayDate = dayValues.length > 0 ? dayValues[dayValues.length - 1] : null;
         return {
           ...ev,
           lowestAsk,
@@ -137,6 +219,10 @@ export default function MarktPage() {
           ticketCount: td.count,
           bidCount: allBids.length,
           verifiedCount: td.verifiedCount,
+          daySummary: formatEventDaySummary(dayValues, lang === 'nl' ? 'nl-NL' : 'en-GB'),
+          defaultDayDate,
+          lastDayDate,
+          filterDate: defaultDayDate || ev.date || null,
         };
       });
 
@@ -182,11 +268,7 @@ export default function MarktPage() {
       d.setHours(23, 59, 59, 999);
       return d;
     };
-    const parseEventDate = (value) => {
-      if (!value) return null;
-      const d = new Date(value);
-      return Number.isNaN(d.getTime()) ? null : d;
-    };
+    const parseEventDate = (value) => parseSafeDate(value);
     const getWeekendRange = (weekOffset = 0) => {
       const now = new Date();
       const today = startOfDay(now);
@@ -224,7 +306,7 @@ export default function MarktPage() {
         if (filterVenue && String(venueLabel) !== filterVenue) return false;
 
         if (dateFilter !== 'all') {
-          const eventDate = parseEventDate(ev.date);
+          const eventDate = parseEventDate(ev.filterDate || ev.date);
           if (!eventDate) return false;
 
           if (dateFilter === 'thisWeekend') {
@@ -244,8 +326,8 @@ export default function MarktPage() {
         return true;
       })
       .sort((a, b) => {
-        const aTime = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER;
-        const bTime = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER;
+        const aTime = a.filterDate ? new Date(a.filterDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const bTime = b.filterDate ? new Date(b.filterDate).getTime() : Number.MAX_SAFE_INTEGER;
         if (aTime !== bTime) return aTime - bTime;
         return String(a.name || '').localeCompare(String(b.name || ''), 'nl');
       });
@@ -413,7 +495,7 @@ export default function MarktPage() {
           {showNoResults && !showAddEvent && (
             <div className="absolute z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
               <p className="mb-3 text-center text-xs text-slate-400">
-                {t('market.noResults', lang)} "{search}"
+                {t('market.noResults', lang)} &quot;{search}&quot;
               </p>
               <button
                 type="button"
@@ -505,26 +587,30 @@ export default function MarktPage() {
 }
 
 function EventCard({ event, lang }) {
-  const formattedDate = event.date
-    ? new Date(event.date).toLocaleDateString('nl-NL', {
+  const parsedEventDate = parseSafeDate(event.date);
+  const formattedDate = event.daySummary || (parsedEventDate
+    ? parsedEventDate.toLocaleDateString('nl-NL', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
       })
-    : null;
+    : null);
 
   const hasTickets = event.ticketCount > 0;
-  const isExpired = event.date && new Date(event.date) < new Date(new Date().toDateString());
+  const lastDayParsed = parseSafeDate(event.lastDayDate);
+  const isExpired = lastDayParsed && lastDayParsed < new Date(new Date().toDateString());
   const locationText = [event.city, event.venue_name || event.venue, event.country_code]
     .filter(Boolean)
     .join(' - ');
+  const eventHref = `/markt/${eventToSlug(event)}${event.defaultDayDate ? `?day=${event.defaultDayDate}` : ''}`;
+  const bidHref = `${eventHref}#biedformulier`;
 
   return (
       <article className={`flex flex-col justify-between rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isExpired ? 'border-slate-100 bg-slate-50 opacity-60' : 'border-slate-200 bg-white shadow-slate-100'}`}>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Link
-              href={`/markt/${eventToSlug(event)}`}
+              href={eventHref}
               className={`text-sm font-semibold hover:underline ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}
             >
               {event.name}
@@ -596,7 +682,7 @@ function EventCard({ event, lang }) {
           )}
           {!isExpired ? (
             <Link
-              href={`/markt/${eventToSlug(event)}#biedformulier`}
+              href={bidHref}
               className="rounded-full border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
             >
               {t('market.placeBidBtn', lang)}
@@ -628,7 +714,7 @@ function EventCard({ event, lang }) {
               : t('market.noTickets', lang)}
           </span>
           <Link
-            href={`/markt/${eventToSlug(event)}`}
+            href={eventHref}
             className="font-medium uppercase tracking-[0.18em] text-slate-400 hover:text-slate-500"
           >
             {t('market.viewOrderbook', lang)}

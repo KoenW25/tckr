@@ -3,12 +3,22 @@
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, calculateServiceFee, formatPrice } from '@/lib/fees';
 import { eventToSlug, slugifyEventName } from '@/lib/eventSlug';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+
+function parseSafeDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00` : raw;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 export default function EventDetailPage() {
   const isValidOneEuroStep = (amount) => {
@@ -19,9 +29,13 @@ export default function EventDetailPage() {
   const { lang } = useLanguage();
   const { id: eventParam } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const dayQueryParam = searchParams.get('day');
 
   const [user, setUser] = useState(null);
   const [event, setEvent] = useState(null);
+  const [eventDays, setEventDays] = useState([]);
+  const [selectedDayDate, setSelectedDayDate] = useState(null);
   const [resolvedEventId, setResolvedEventId] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [bids, setBids] = useState([]);
@@ -82,13 +96,45 @@ export default function EventDetailPage() {
         setEvent(eventData);
         setResolvedEventId(Number(eventData.id));
 
-        const { data: ticketsData } = await supabase
+        const { data: eventDayRows } = await supabase
+          .from('event_days')
+          .select('id, event_id, day_date, label')
+          .eq('event_id', eventData.id)
+          .order('day_date', { ascending: true });
+
+        const fallbackDays = eventData?.date
+          ? [{ id: null, event_id: eventData.id, day_date: String(eventData.date).slice(0, 10), label: null }]
+          : [];
+        const resolvedEventDays = (eventDayRows?.length ? eventDayRows : fallbackDays).filter(
+          (day) => Boolean(day?.day_date)
+        );
+        setEventDays(resolvedEventDays);
+
+        const requestedDay = dayQueryParam;
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const availableDayValues = resolvedEventDays.map((day) => day.day_date);
+        const activeDay =
+          (requestedDay && availableDayValues.includes(requestedDay) ? requestedDay : null) ||
+          availableDayValues.find((value) => value >= todayIso) ||
+          availableDayValues[0] ||
+          null;
+        setSelectedDayDate(activeDay);
+
+        const selectedEventDay = resolvedEventDays.find((day) => day.day_date === activeDay) || null;
+
+        let ticketQuery = supabase
           .from('tickets')
-          .select('id, ask_price, status, user_id')
+          .select('id, ask_price, status, user_id, event_day_id')
           .eq('event_id', eventData.id)
           .eq('status', 'available')
           .not('ask_price', 'is', null)
           .order('ask_price', { ascending: true });
+
+        if (selectedEventDay?.id != null) {
+          ticketQuery = ticketQuery.eq('event_day_id', selectedEventDay.id);
+        }
+
+        const { data: ticketsData } = await ticketQuery;
 
         setTickets(ticketsData ?? []);
 
@@ -99,7 +145,7 @@ export default function EventDetailPage() {
         if (ticketIds.length > 0) {
           const { data: ticketBids } = await supabase
             .from('bids')
-            .select('id, bid_price, created_at, status, ticket_id, event_id')
+            .select('id, bid_price, created_at, status, ticket_id, event_id, event_day_id')
             .in('ticket_id', ticketIds)
             .eq('status', 'pending')
             .order('bid_price', { ascending: false });
@@ -107,13 +153,17 @@ export default function EventDetailPage() {
           allBids = [...allBids, ...(ticketBids ?? [])];
         }
 
-        const { data: eventBids } = await supabase
+        let eventBidQuery = supabase
           .from('bids')
-          .select('id, bid_price, created_at, status, ticket_id, event_id')
+          .select('id, bid_price, created_at, status, ticket_id, event_id, event_day_id')
           .eq('event_id', eventData.id)
           .is('ticket_id', null)
           .eq('status', 'pending')
           .order('bid_price', { ascending: false });
+        if (selectedEventDay?.id != null) {
+          eventBidQuery = eventBidQuery.eq('event_day_id', selectedEventDay.id);
+        }
+        const { data: eventBids } = await eventBidQuery;
 
         allBids = [...allBids, ...(eventBids ?? [])];
 
@@ -128,7 +178,9 @@ export default function EventDetailPage() {
 
         setBids(unique);
 
-        const txRes = await fetch(`/api/events/${eventData.id}/transactions`);
+        const txRes = await fetch(
+          `/api/events/${eventData.id}/transactions${activeDay ? `?day=${encodeURIComponent(activeDay)}` : ''}`
+        );
         if (txRes.ok) {
           const txJson = await txRes.json();
           const points = (txJson?.points ?? []).map((tx) => ({
@@ -152,7 +204,7 @@ export default function EventDetailPage() {
       }
     }
     init();
-  }, [eventParam]);
+  }, [eventParam, dayQueryParam]);
 
   useEffect(() => {
     let isMounted = true;
@@ -199,11 +251,13 @@ export default function EventDetailPage() {
     const canonicalSlug = eventToSlug(event);
     if (!canonicalSlug) return;
     if (eventParam !== canonicalSlug) {
-      router.replace(`/markt/${canonicalSlug}`);
+      const dayQuery = selectedDayDate ? `?day=${encodeURIComponent(selectedDayDate)}` : '';
+      router.replace(`/markt/${canonicalSlug}${dayQuery}`);
     }
-  }, [event?.name, event?.id, eventParam, router]);
+  }, [event?.name, event?.id, eventParam, router, selectedDayDate]);
 
   const handleSubmitBid = async () => {
+    const selectedEventDay = eventDays.find((day) => day.day_date === selectedDayDate) || null;
     if (!user) {
       router.push('/login');
       return;
@@ -213,7 +267,7 @@ export default function EventDetailPage() {
       return;
     }
 
-    if (isExpired) {
+    if (isExpiredForSelectedDay) {
       setBidError(t('event.bidExpiredError', lang));
       setBidSuccess('');
       return;
@@ -241,12 +295,13 @@ export default function EventDetailPage() {
         .from('bids')
         .insert({
           event_id: Number(resolvedEventId),
+          event_day_id: selectedEventDay?.id ?? null,
           ticket_id: null,
           user_id: user.id,
           bid_price: numeric,
           status: 'pending',
         })
-        .select('id, bid_price, created_at, status, ticket_id, event_id')
+        .select('id, bid_price, created_at, status, ticket_id, event_id, event_day_id')
         .single();
 
       if (insertErr) throw insertErr;
@@ -266,7 +321,8 @@ export default function EventDetailPage() {
 
   const handleNotifyOnAvailability = async () => {
     if (!user) {
-      router.push(`/login?next=/markt/${eventParam}`);
+      const nextPath = `/markt/${eventParam}${selectedDayDate ? `?day=${encodeURIComponent(selectedDayDate)}` : ''}`;
+      router.push(`/login?next=${encodeURIComponent(nextPath)}`);
       return;
     }
     if (!resolvedEventId) return;
@@ -476,10 +532,13 @@ export default function EventDetailPage() {
     }, {})
   ).sort((a, b) => a.askPrice - b.askPrice);
 
-  const isExpired = event.date && new Date(event.date) < new Date(new Date().toDateString());
+  const effectiveEventDate = selectedDayDate || event.date || null;
+  const parsedEffectiveEventDate = parseSafeDate(effectiveEventDate);
+  const isExpiredForSelectedDay =
+    parsedEffectiveEventDate && parsedEffectiveEventDate < new Date(new Date().toDateString());
 
-  const formattedDate = event.date
-    ? new Date(event.date).toLocaleDateString('nl-NL', {
+  const formattedDate = parsedEffectiveEventDate
+    ? parsedEffectiveEventDate.toLocaleDateString('nl-NL', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -502,16 +561,42 @@ export default function EventDetailPage() {
         <header className="mb-8">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <h1 className={`text-2xl font-semibold tracking-tight sm:text-3xl ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}>
+              <h1 className={`text-2xl font-semibold tracking-tight sm:text-3xl ${isExpiredForSelectedDay ? 'text-slate-400' : 'text-slate-900'}`}>
                 {event.name}
               </h1>
-              {isExpired && (
+              {isExpiredForSelectedDay && (
                 <span className="rounded-full bg-slate-200 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
                   {t('event.expired', lang)}
                 </span>
               )}
             </div>
-            {!isExpired && (
+            {eventDays.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-slate-500">{t('event.selectDay', lang)}:</span>
+                {eventDays.map((day) => {
+                  const isSelected = day.day_date === selectedDayDate;
+                  const href = `/markt/${eventToSlug(event)}?day=${encodeURIComponent(day.day_date)}`;
+                  return (
+                    <button
+                      key={day.day_date}
+                      type="button"
+                      onClick={() => router.replace(href)}
+                      className={`rounded-full px-3 py-1 text-xs transition ${
+                        isSelected
+                          ? 'bg-slate-900 text-white'
+                          : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {parseSafeDate(day.day_date)?.toLocaleDateString(lang === 'nl' ? 'nl-NL' : 'en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                      }) || day.day_date}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {!isExpiredForSelectedDay && (
               <div className="flex flex-wrap items-center gap-2">
                 {lowestAsk != null && (
                   directBuyCheckoutHref ? (
@@ -738,7 +823,7 @@ export default function EventDetailPage() {
           <div id="biedformulier" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">{t('event.placeBid', lang)}</h3>
             <p className="mt-1 text-xs text-slate-500">
-              {isExpired ? t('event.bidExpiredError', lang) : t('event.placeBidDesc', lang)}
+              {isExpiredForSelectedDay ? t('event.bidExpiredError', lang) : t('event.placeBidDesc', lang)}
             </p>
             <p className="mt-1 text-[11px] text-slate-400">
               {t('event.tickSizeHint', lang)}
@@ -753,7 +838,7 @@ export default function EventDetailPage() {
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={t('event.bidPlaceholder', lang)}
-                disabled={isExpired}
+                disabled={isExpiredForSelectedDay}
                 className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
               />
             </div>
@@ -764,7 +849,7 @@ export default function EventDetailPage() {
             <button
               type="button"
               onClick={handleSubmitBid}
-              disabled={submitting || isExpired}
+              disabled={submitting || isExpiredForSelectedDay}
               className="mt-3 w-full rounded-full bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400 disabled:opacity-60"
             >
               {submitting ? t('event.submitting', lang) : t('event.placeBid', lang)}

@@ -79,7 +79,7 @@ export default function DashboardPage() {
       try {
         const { data, error } = await supabase
           .from('tickets')
-          .select('id, pdf_url, status, ask_price, event_name, event_date, event_id, reserved_for, reserved_until, is_private, private_buyer_email')
+          .select('id, pdf_url, status, ask_price, event_name, event_date, event_id, event_day_id, reserved_for, reserved_until, is_private, private_buyer_email')
           .eq('user_id', user.id)
           .order('id', { ascending: false });
 
@@ -95,9 +95,20 @@ export default function DashboardPage() {
           for (const ev of events ?? []) eventMap[ev.id] = ev;
         }
 
+        const eventDayIds = [...new Set((data ?? []).map((tk) => tk.event_day_id).filter(Boolean))];
+        let eventDayMap = {};
+        if (eventDayIds.length > 0) {
+          const { data: eventDays } = await supabase
+            .from('event_days')
+            .select('id, day_date, label')
+            .in('id', eventDayIds);
+          for (const day of eventDays ?? []) eventDayMap[day.id] = day;
+        }
+
         const enriched = (data ?? []).map((tk) => ({
           ...tk,
           eventInfo: eventMap[tk.event_id] || null,
+          eventDayInfo: eventDayMap[tk.event_day_id] || null,
         }));
 
         setSellerTickets(enriched);
@@ -167,7 +178,7 @@ export default function DashboardPage() {
       try {
         const { data, error } = await supabase
           .from('tickets')
-          .select('id, pdf_url, status, ask_price, event_name, event_date, event_id, buyer_id')
+          .select('id, pdf_url, status, ask_price, event_name, event_date, event_id, event_day_id, buyer_id')
           .eq('buyer_id', user.id)
           .eq('status', 'sold')
           .order('id', { ascending: false });
@@ -184,9 +195,20 @@ export default function DashboardPage() {
           for (const ev of events ?? []) eventMap[ev.id] = ev;
         }
 
+        const eventDayIds = [...new Set((data ?? []).map((tk) => tk.event_day_id).filter(Boolean))];
+        let eventDayMap = {};
+        if (eventDayIds.length > 0) {
+          const { data: eventDays } = await supabase
+            .from('event_days')
+            .select('id, day_date, label')
+            .in('id', eventDayIds);
+          for (const day of eventDays ?? []) eventDayMap[day.id] = day;
+        }
+
         const enriched = (data ?? []).map((tk) => ({
           ...tk,
           eventInfo: eventMap[tk.event_id] || null,
+          eventDayInfo: eventDayMap[tk.event_day_id] || null,
         }));
 
         setPurchasedTickets(enriched);
@@ -214,20 +236,25 @@ export default function DashboardPage() {
 
         const { data: ticketBids, error: tErr } = await supabase
           .from('bids')
-          .select('id, ticket_id, event_id, bid_price, user_id, status, created_at')
+          .select('id, ticket_id, event_id, event_day_id, bid_price, user_id, status, created_at')
           .in('ticket_id', ticketIds)
           .order('created_at', { ascending: false });
         if (tErr) throw tErr;
 
         let eventBids = [];
+        const eventDayIds = [...new Set(sellerTickets.map((tk) => tk.event_day_id).filter(Boolean))];
         if (eventIds.length > 0) {
           const { data: eBids, error: eErr } = await supabase
             .from('bids')
-            .select('id, ticket_id, event_id, bid_price, user_id, status, created_at')
+            .select('id, ticket_id, event_id, event_day_id, bid_price, user_id, status, created_at')
             .in('event_id', eventIds)
             .is('ticket_id', null)
             .order('created_at', { ascending: false });
-          if (!eErr) eventBids = eBids ?? [];
+          if (!eErr) {
+            eventBids = (eBids ?? []).filter(
+              (bid) => !eventDayIds.length || !bid.event_day_id || eventDayIds.includes(bid.event_day_id)
+            );
+          }
         }
 
         const seen = new Set();
@@ -259,7 +286,7 @@ export default function DashboardPage() {
       try {
         const { data: bidsData, error: bidsErr } = await supabase
           .from('bids')
-          .select('id, ticket_id, event_id, bid_price, status, created_at')
+          .select('id, ticket_id, event_id, event_day_id, bid_price, status, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
         if (bidsErr) throw bidsErr;
@@ -271,11 +298,22 @@ export default function DashboardPage() {
           for (const ev of events ?? []) eventNameMap[ev.id] = { name: ev.name, date: ev.date };
         }
 
+        const eventDayIds = [...new Set((bidsData ?? []).map((bid) => bid.event_day_id).filter(Boolean))];
+        let eventDayMap = {};
+        if (eventDayIds.length > 0) {
+          const { data: eventDays } = await supabase
+            .from('event_days')
+            .select('id, day_date, label')
+            .in('id', eventDayIds);
+          for (const day of eventDays ?? []) eventDayMap[day.id] = day;
+        }
+
         setMyBids(
           (bidsData ?? []).map((b) => ({
             ...b,
             eventName: eventNameMap[b.event_id]?.name || null,
             eventDate: eventNameMap[b.event_id]?.date || null,
+            eventDayDate: eventDayMap[b.event_day_id]?.day_date || null,
           }))
         );
       } catch (err) {
@@ -879,7 +917,7 @@ export default function DashboardPage() {
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {sellerTickets.map((ticket) => {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
-                        const date = ticket.eventInfo?.date || ticket.event_date;
+                        const date = ticket.eventDayInfo?.day_date || ticket.eventInfo?.date || ticket.event_date;
                         const eventNameForHref = ticket.eventInfo?.name || ticket.event_name;
                         const eventHref = eventNameForHref ? `/markt/${eventToSlug({ name: eventNameForHref })}` : null;
                         return (
@@ -1029,7 +1067,7 @@ export default function DashboardPage() {
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {purchasedTickets.map((ticket) => {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
-                        const date = ticket.eventInfo?.date || ticket.event_date;
+                        const date = ticket.eventDayInfo?.day_date || ticket.eventInfo?.date || ticket.event_date;
                         const eventNameForHref = ticket.eventInfo?.name || ticket.event_name;
                         const eventHref = eventNameForHref ? `/markt/${eventToSlug({ name: eventNameForHref })}` : null;
                         return (
@@ -1105,12 +1143,22 @@ export default function DashboardPage() {
                           const parent = bid.ticket_id
                             ? sellerTickets.find((tk) => tk.id === bid.ticket_id)
                             : bid.event_id
-                              ? sellerTickets.find((tk) => tk.event_id === bid.event_id)
+                              ? sellerTickets.find((tk) =>
+                                  bid.event_day_id
+                                    ? tk.event_day_id === bid.event_day_id
+                                    : tk.event_id === bid.event_id
+                                )
                               : null;
                           const label = parent?.eventInfo?.name || parent?.event_name || (bid.event_id ? `Event #${bid.event_id}` : `Bod #${bid.id}`);
+                          const dayLabel = parent?.eventDayInfo?.day_date
+                            ? new Date(parent.eventDayInfo.day_date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
+                            : null;
                           return (
                             <tr key={bid.id}>
-                              <td className="px-3 py-2 text-xs text-slate-900">{label}</td>
+                              <td className="px-3 py-2 text-xs text-slate-900">
+                                {label}
+                                {dayLabel ? <span className="ml-1.5 text-[10px] text-slate-400">{dayLabel}</span> : null}
+                              </td>
                               <td className="px-3 py-2 text-right text-xs font-medium text-sky-700">
                                 € {Number(bid.bid_price).toFixed(2).replace('.', ',')}
                               </td>
@@ -1168,9 +1216,9 @@ export default function DashboardPage() {
                           <tr key={bid.id}>
                             <td className="px-3 py-2 text-xs text-slate-900">
                               {bid.eventName || `Event #${bid.event_id || '—'}`}
-                              {bid.eventDate && (
+                              {(bid.eventDayDate || bid.eventDate) && (
                                 <span className="ml-1.5 text-[10px] text-slate-400">
-                                  {new Date(bid.eventDate).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                                  {new Date(bid.eventDayDate || bid.eventDate).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
                                 </span>
                               )}
                             </td>

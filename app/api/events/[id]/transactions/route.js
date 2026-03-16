@@ -5,7 +5,7 @@ const supabaseService = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export async function GET(_request, context) {
+export async function GET(request, context) {
   try {
     const maybeParams = context?.params;
     const resolvedParams =
@@ -16,12 +16,30 @@ export async function GET(_request, context) {
     if (!eventId) {
       return Response.json({ error: 'eventId is verplicht.' }, { status: 400 });
     }
+    const { searchParams } = new URL(request.url);
+    const dayParam = String(searchParams.get('day') || '').trim();
+    const hasDayFilter = /^\d{4}-\d{2}-\d{2}$/.test(dayParam);
 
-    const { data, error } = await supabaseService
+    let eventDayId = null;
+    if (hasDayFilter) {
+      const { data: eventDay } = await supabaseService
+        .from('event_days')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('day_date', dayParam)
+        .maybeSingle();
+      eventDayId = eventDay?.id ?? null;
+    }
+
+    let txQuery = supabaseService
       .from('ticket_transactions')
       .select('sold_price, sold_at')
       .eq('event_id', eventId)
       .order('sold_at', { ascending: true });
+    if (eventDayId != null) {
+      txQuery = txQuery.eq('event_day_id', eventDayId);
+    }
+    const { data, error } = await txQuery;
 
     let transactions = [];
     if (error) {
@@ -34,12 +52,16 @@ export async function GET(_request, context) {
 
     // Fallback for projects where ticket_transactions is not yet populated.
     if (transactions.length === 0) {
-      const { data: soldTickets, error: soldError } = await supabaseService
+      let soldQuery = supabaseService
         .from('tickets')
-        .select('ask_price, price, sold_at, updated_at, created_at')
+        .select('ask_price, price, sold_at, updated_at, created_at, event_day_id')
         .eq('event_id', eventId)
         .eq('status', 'sold')
         .order('updated_at', { ascending: true });
+      if (eventDayId != null) {
+        soldQuery = soldQuery.eq('event_day_id', eventDayId);
+      }
+      const { data: soldTickets, error: soldError } = await soldQuery;
 
       if (!soldError) {
         transactions = (soldTickets ?? [])

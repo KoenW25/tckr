@@ -62,7 +62,7 @@ export async function POST(request) {
 
     const { data: bid, error: bidError } = await supabaseAdmin
       .from('bids')
-      .select('id, ticket_id, event_id, bid_price, user_id, status')
+      .select('id, ticket_id, event_id, event_day_id, bid_price, user_id, status')
       .eq('id', bidId)
       .single();
 
@@ -78,20 +78,26 @@ export async function POST(request) {
     if (bid.ticket_id) {
       const { data: directTicket } = await supabaseAdmin
         .from('tickets')
-        .select('id, user_id, event_id, event_name, ask_price, status, reserved_for, reserved_until')
+        .select('id, user_id, event_id, event_day_id, event_name, ask_price, status, reserved_for, reserved_until')
         .eq('id', bid.ticket_id)
         .single();
       ticket = directTicket;
-    } else if (bid.event_id != null) {
-      const { data: availableTicket } = await supabaseAdmin
+    } else if (bid.event_day_id != null || bid.event_id != null) {
+      let ticketQuery = supabaseAdmin
         .from('tickets')
-        .select('id, user_id, event_id, event_name, ask_price, status, reserved_for, reserved_until')
-        .eq('event_id', bid.event_id)
+        .select('id, user_id, event_id, event_day_id, event_name, ask_price, status, reserved_for, reserved_until')
         .eq('user_id', actor.id)
         .eq('status', 'available')
         .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      if (bid.event_day_id != null) {
+        ticketQuery = ticketQuery.eq('event_day_id', bid.event_day_id);
+      } else {
+        ticketQuery = ticketQuery.eq('event_id', bid.event_id);
+      }
+
+      const { data: availableTicket } = await ticketQuery.maybeSingle();
       ticket = availableTicket;
     }
 
@@ -125,6 +131,8 @@ export async function POST(request) {
       .update({
         status: 'accepted',
         ticket_id: ticket.id,
+        event_day_id: ticket.event_day_id ?? bid.event_day_id ?? null,
+        event_id: ticket.event_id ?? bid.event_id ?? null,
         expires_at: expiresAt,
       })
       .eq('id', bid.id)
