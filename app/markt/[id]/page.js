@@ -627,7 +627,7 @@ export default function EventDetailPage() {
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2">
           {/* Direct kopen */}
-          <div className="order-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100 sm:order-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">{t('event.buyNow', lang)}</h3>
             {lowestAsk != null && cheapestTicket ? (
               <>
@@ -673,7 +673,7 @@ export default function EventDetailPage() {
           </div>
 
           {/* Bod plaatsen */}
-          <div className="order-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100 sm:order-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">{t('event.placeBid', lang)}</h3>
             <p className="mt-1 text-xs text-slate-500">
               {isExpired ? t('event.bidExpiredError', lang) : t('event.placeBidDesc', lang)}
@@ -710,7 +710,7 @@ export default function EventDetailPage() {
           </div>
 
           {/* Orderboek */}
-          <section className="order-3 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 sm:order-2">
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
               <h2 className="text-sm font-semibold text-slate-900">{t('event.orderbook', lang)}</h2>
               {spread != null && (
@@ -793,7 +793,7 @@ export default function EventDetailPage() {
           </section>
 
           {/* Prijsverloop grafiek */}
-          <section className="order-4 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100 sm:order-1">
+          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
             <div className="border-b border-slate-100 px-5 py-3">
               <h2 className="text-sm font-semibold text-slate-900">{t('event.priceHistory', lang)}</h2>
             </div>
