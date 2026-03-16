@@ -473,7 +473,7 @@ export default function EventDetailPage() {
         </Link>
 
         <header className="mb-8">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <h1 className={`text-2xl font-semibold tracking-tight sm:text-3xl ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}>
                 {event.name}
@@ -485,7 +485,7 @@ export default function EventDetailPage() {
               )}
             </div>
             {!isExpired && (
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {lowestAsk == null && (
                   <button
                     type="button"
