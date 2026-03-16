@@ -448,7 +448,6 @@ export default function EventDetailPage() {
         ? `/checkout/${selectedDirectBuyTickets[0].id}`
         : `/checkout/${selectedDirectBuyTickets[0].id}?ticketIds=${selectedDirectBuyTickets.map((ticket) => ticket.id).join(',')}`;
   const highestBid = bids.length > 0 ? Number(bids[0].bid_price) : null;
-  const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
   const groupedBids = Object.values(
     bids.reduce((acc, bid) => {
       const bidPrice = Number(bid.bid_price);
@@ -514,6 +513,24 @@ export default function EventDetailPage() {
             </div>
             {!isExpired && (
               <div className="flex flex-wrap items-center gap-2">
+                {lowestAsk != null && (
+                  directBuyCheckoutHref ? (
+                    <Link
+                      href={directBuyCheckoutHref}
+                      className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400"
+                    >
+                      {t('event.buyTicket', lang)} € {formatPrice(Number(selectedDirectBuyTickets?.[0]?.ask_price ?? lowestAsk))}
+                    </Link>
+                  ) : isDirectBuyOwnOnly ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="rounded-full bg-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
+                    >
+                      {safeDirectBuyQuantity > 1 ? t('event.ownTickets', lang) : t('event.ownTicket', lang)}
+                    </button>
+                  ) : null
+                )}
                 {lowestAsk == null && (
                   <button
                     type="button"
@@ -611,8 +628,8 @@ export default function EventDetailPage() {
           </section>
         )}
 
-        {/* Spread overview */}
-        <section className="mb-8 grid gap-4 grid-cols-2 sm:grid-cols-4">
+        {/* Top stats */}
+        <section className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-rose-500">
               <span>{t('event.ask', lang)}</span>{' '}
@@ -633,14 +650,6 @@ export default function EventDetailPage() {
             </p>
             <p className="mt-1 text-xl font-bold text-sky-700">
               {highestBid != null ? `€ ${formatPrice(highestBid)}` : '—'}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-              {t('event.spread', lang)}
-            </p>
-            <p className="mt-1 text-xl font-bold text-slate-700">
-              {spread != null ? `€ ${formatPrice(spread)}` : '—'}
             </p>
           </div>
           <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
@@ -766,11 +775,6 @@ export default function EventDetailPage() {
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
               <h2 className="text-sm font-semibold text-slate-900">{t('event.orderbook', lang)}</h2>
-              {spread != null && (
-                <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                  {t('event.spread', lang)}: € {formatPrice(spread)}
-                </span>
-              )}
             </div>
 
             <div className="grid grid-cols-2 divide-x divide-slate-100">
