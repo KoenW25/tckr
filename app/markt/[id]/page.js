@@ -701,6 +701,19 @@ export default function EventDetailPage() {
                   </Link>
                 )}
               </>
+            ) : tickets.length > 0 && user?.id ? (
+              <>
+                <p className="mt-3 text-xs text-slate-500">
+                  {t('event.onlyOwnTickets', lang)}
+                </p>
+                <button
+                  type="button"
+                  disabled
+                  className="mt-4 block w-full cursor-not-allowed rounded-full bg-slate-200 px-4 py-2.5 text-center text-xs font-semibold text-slate-500"
+                >
+                  {t('event.ownTicket', lang)}
+                </button>
+              </>
             ) : (
               <p className="mt-3 text-xs text-slate-400">
                 {t('event.noTicketsYet', lang)}
