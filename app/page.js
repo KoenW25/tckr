@@ -47,15 +47,15 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-slate-500">
+            <div className="flex flex-nowrap items-center gap-4 text-xs text-slate-500">
               <div className="flex items-center gap-2">
                 <span className="h-5 w-5 rounded-full bg-emerald-50 ring-1 ring-emerald-200" />
-                <span>{t('home.featureFraud', lang)}</span>
+                <span className="whitespace-nowrap">{t('home.featureFraud', lang)}</span>
               </div>
-              <span className="hidden h-3 w-px bg-slate-200 sm:inline" />
-              <span>{t('home.featurePayout', lang)}</span>
-              <span className="hidden h-3 w-px bg-slate-200 sm:inline" />
-              <span>{t('home.featureFees', lang)}</span>
+              <span className="h-3 w-px bg-slate-200" />
+              <span className="whitespace-nowrap">{t('home.featurePayout', lang)}</span>
+              <span className="h-3 w-px bg-slate-200" />
+              <span className="whitespace-nowrap">{t('home.featureFees', lang)}</span>
             </div>
           </section>
 

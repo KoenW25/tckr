@@ -57,7 +57,7 @@ function LoginContent() {
     setMagicError('');
     setMagicSent(false);
     if (!emailRegex.test(normalizedEmail)) {
-      setMagicError('Voer een geldig e-mailadres in.');
+      setMagicError(t('login.invalidEmail', lang));
       return;
     }
 
@@ -206,7 +206,7 @@ function LoginContent() {
           {/* Divider */}
           <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
             <div className="h-px flex-1 bg-slate-200" />
-            <span>Of log in met een magic link</span>
+            <span>{t('login.magicDivider', lang)}</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
@@ -232,7 +232,7 @@ function LoginContent() {
                     type="email"
                     value={magicEmail}
                     onChange={(e) => setMagicEmail(e.target.value)}
-                    placeholder="jouw@email.nl"
+                    placeholder={t('login.emailPlaceholder', lang)}
                     required
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
@@ -243,7 +243,7 @@ function LoginContent() {
                   disabled={magicLoading}
                   className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
                 >
-                  {magicLoading ? t('login.magicSending', lang) : 'Stuur magic link'}
+                  {magicLoading ? t('login.magicSending', lang) : t('login.magicLink', lang)}
                 </button>
               </>
             )}

@@ -852,7 +852,7 @@ export default function DashboardPage() {
                 </div>
               ) : alertSubscriptions.length === 0 ? (
                 <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">
-                  Je hebt nog geen actieve ticket alerts.
+                  {t('dash.noTicketAlerts', lang)}
                 </div>
               ) : (
                 <div className="space-y-2">

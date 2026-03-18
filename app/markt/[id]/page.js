@@ -335,7 +335,7 @@ export default function EventDetailPage() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        setNotifyMessage('Je sessie is verlopen. Log opnieuw in.');
+        setNotifyMessage(t('common.sessionExpiredRelog', lang));
         return;
       }
 
@@ -358,20 +358,20 @@ export default function EventDetailPage() {
           });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setNotifyMessage(json?.error || 'Aanmelden voor melding mislukt.');
+        setNotifyMessage(json?.error || (notifySubscribed ? t('event.notifyUnsubscribeError', lang) : t('event.notifySubscribeError', lang)));
         return;
       }
 
       if (notifySubscribed) {
         setNotifySubscribed(false);
-        setNotifyMessage('Je bent afgemeld voor deze ticket alert.');
+        setNotifyMessage(t('event.notifyUnsubscribedSuccess', lang));
       } else {
         setNotifySubscribed(true);
-        setNotifyMessage('Je krijgt een mail zodra er een ticket beschikbaar is.');
+        setNotifyMessage(t('event.notifySubscribedSuccess', lang));
       }
     } catch (err) {
       console.error('Notify subscribe error:', err);
-      setNotifyMessage(notifySubscribed ? 'Afmelden voor melding mislukt.' : 'Aanmelden voor melding mislukt.');
+      setNotifyMessage(notifySubscribed ? t('event.notifyUnsubscribeError', lang) : t('event.notifySubscribeError', lang));
     } finally {
       setNotifyLoading(false);
     }
@@ -624,12 +624,12 @@ export default function EventDetailPage() {
                     className="rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:opacity-60"
                   >
                     {notifyLoading
-                      ? 'Bezig...'
+                      ? t('event.notifyLoading', lang)
                       : notifyStatusLoading
-                        ? 'Even laden...'
+                        ? t('event.notifyStatusLoading', lang)
                         : notifySubscribed
-                          ? 'Uitschrijven alert'
-                          : 'Mail bij aanbod'}
+                          ? t('event.notifyUnsubscribe', lang)
+                          : t('event.notifySubscribe', lang)}
                   </button>
                 )}
                 <Link
