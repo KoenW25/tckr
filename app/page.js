@@ -1,46 +1,138 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
+import supabase from '@/lib/supabase';
+import { formatPrice } from '@/lib/fees';
+import { eventToSlug } from '@/lib/eventSlug';
 
 export default function Home() {
   const { lang } = useLanguage();
-  const howItWorksCards = [
-    {
-      number: '01',
-      title: 'Koop direct',
-      description:
-        'Zie je een ticket voor een prijs die je aanspreekt? Koop hem direct. Je betaalt de vraagprijs plus een kleine servicekosten.',
-      tag: 'Altijd veilig',
-      tagBg: '#eef7f1',
-      tagColor: '#1a6b3c',
-      iconBg: 'bg-emerald-50',
-      icon: '💳',
-    },
-    {
-      number: '02',
-      title: 'Doe een bod',
-      description:
-        'Wil je minder betalen, of zijn er nog geen tickets beschikbaar? Doe een bod. Zodra een verkoper akkoord gaat ontvang je een betaallink.',
-      tag: 'Ook zonder aanbod',
-      tagBg: '#e6f1fb',
-      tagColor: '#185FA5',
-      iconBg: 'bg-sky-50',
-      icon: '⏃',
-    },
-    {
-      number: '03',
-      title: 'Verkoop veilig',
-      description:
-        'Upload je ticket, stel je prijs in en wacht op een koper. Wij verifiëren het ticket en betalen je direct uit na de transactie.',
-      tag: 'Geen gedoe',
-      tagBg: '#f3f4f6',
-      tagColor: '#475569',
-      iconBg: 'bg-slate-100',
-      icon: '↓',
-    },
-  ];
+  const [previewEvents, setPreviewEvents] = useState([]);
+  const [previewLoading, setPreviewLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPreviewEvents() {
+      setPreviewLoading(true);
+      try {
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('id, name, date, city')
+          .order('date', { ascending: true })
+          .limit(3);
+
+        if (eventsError) throw eventsError;
+        const events = eventsData ?? [];
+        if (events.length === 0) {
+          if (isMounted) setPreviewEvents([]);
+          return;
+        }
+
+        const eventIds = events.map((event) => Number(event.id)).filter((value) => Number.isInteger(value));
+
+        const { data: ticketsData } = await supabase
+          .from('tickets')
+          .select('id, event_id, ask_price, is_private')
+          .in('event_id', eventIds)
+          .eq('status', 'available')
+          .not('ask_price', 'is', null)
+          .or('is_private.is.null,is_private.eq.false');
+
+        const { data: bidsData } = await supabase
+          .from('bids')
+          .select('event_id, bid_price')
+          .in('event_id', eventIds)
+          .eq('status', 'pending');
+
+        const ticketMap = {};
+        for (const ticket of ticketsData ?? []) {
+          const eventId = Number(ticket.event_id);
+          const ask = Number(ticket.ask_price);
+          if (!Number.isInteger(eventId) || !Number.isFinite(ask)) continue;
+          if (!ticketMap[eventId]) {
+            ticketMap[eventId] = {
+              lowestAsk: null,
+              cheapestTicketId: null,
+            };
+          }
+          if (ticketMap[eventId].lowestAsk == null || ask < ticketMap[eventId].lowestAsk) {
+            ticketMap[eventId].lowestAsk = ask;
+            ticketMap[eventId].cheapestTicketId = Number(ticket.id);
+          }
+        }
+
+        const highestBidMap = {};
+        for (const bid of bidsData ?? []) {
+          const eventId = Number(bid.event_id);
+          const bidValue = Number(bid.bid_price);
+          if (!Number.isInteger(eventId) || !Number.isFinite(bidValue)) continue;
+          if (highestBidMap[eventId] == null || bidValue > highestBidMap[eventId]) {
+            highestBidMap[eventId] = bidValue;
+          }
+        }
+
+        const enriched = events.map((event) => ({
+          ...event,
+          lowestAsk: ticketMap[event.id]?.lowestAsk ?? null,
+          cheapestTicketId: ticketMap[event.id]?.cheapestTicketId ?? null,
+          highestBid: highestBidMap[event.id] ?? null,
+        }));
+
+        if (isMounted) setPreviewEvents(enriched);
+      } catch (error) {
+        console.error('Home preview events error:', error);
+        if (isMounted) setPreviewEvents([]);
+      } finally {
+        if (isMounted) setPreviewLoading(false);
+      }
+    }
+
+    loadPreviewEvents();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const previewDateLocale = lang === 'nl' ? 'nl-NL' : 'en-GB';
+  const howItWorksCards = useMemo(
+    () => [
+      {
+        number: '01',
+        title: t('home.how.card1.title', lang),
+        description: t('home.how.card1.description', lang),
+        tag: t('home.how.card1.tag', lang),
+        tagBg: '#eef7f1',
+        tagColor: '#1a6b3c',
+        iconBg: 'bg-emerald-50',
+        icon: '💳',
+      },
+      {
+        number: '02',
+        title: t('home.how.card2.title', lang),
+        description: t('home.how.card2.description', lang),
+        tag: t('home.how.card2.tag', lang),
+        tagBg: '#e6f1fb',
+        tagColor: '#185FA5',
+        iconBg: 'bg-sky-50',
+        icon: '⏃',
+      },
+      {
+        number: '03',
+        title: t('home.how.card3.title', lang),
+        description: t('home.how.card3.description', lang),
+        tag: t('home.how.card3.tag', lang),
+        tagBg: '#f3f4f6',
+        tagColor: '#475569',
+        iconBg: 'bg-slate-100',
+        icon: '↓',
+      },
+    ],
+    [lang]
+  );
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -172,9 +264,9 @@ export default function Home() {
       >
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Hoe het werkt</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('home.how.label', lang)}</p>
             <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
-              Eerlijk handelen in tickets
+              {t('home.how.title', lang)}
             </h2>
           </div>
 
@@ -200,6 +292,74 @@ export default function Home() {
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="border-t border-slate-200" style={{ borderTopWidth: '0.5px' }}>
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-200 pb-4" style={{ borderBottomWidth: '0.5px' }}>
+            <h3 className="text-2xl tracking-tight text-slate-900">{t('home.preview.title', lang)}</h3>
+            <Link href="/markt" className="text-sm text-slate-700 transition hover:text-slate-900">
+              {t('home.preview.viewAll', lang)}
+            </Link>
+          </div>
+
+          {previewLoading ? (
+            <p className="py-6 text-sm text-slate-500">{t('common.loading', lang)}</p>
+          ) : previewEvents.length === 0 ? (
+            <p className="py-6 text-sm text-slate-500">{t('home.preview.empty', lang)}</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              {previewEvents.map((event) => {
+                const eventDate = event.date
+                  ? new Date(event.date).toLocaleDateString(previewDateLocale, {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : t('home.preview.unknownDate', lang);
+                const location = event.city || t('home.preview.unknownCity', lang);
+                const detailHref = `/markt/${eventToSlug(event)}`;
+                const buyHref = event.cheapestTicketId ? `/checkout/${event.cheapestTicketId}` : detailHref;
+                return (
+                  <article
+                    key={event.id}
+                    className="rounded-[12px] border border-slate-200 bg-white p-5"
+                    style={{ borderWidth: '0.5px' }}
+                  >
+                    <Link href={detailHref} className="text-3xl font-medium uppercase tracking-tight text-slate-900 hover:underline">
+                      {event.name}
+                    </Link>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {eventDate} · {location}
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl bg-slate-100 p-3">
+                        <p className="uppercase tracking-[0.14em] text-slate-600">{t('home.preview.buyNow', lang)}</p>
+                        <p className="mt-1 text-3xl font-semibold" style={{ color: '#c0392b' }}>
+                          {event.lowestAsk != null ? `€${formatPrice(event.lowestAsk)}` : '—'}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-slate-100 p-3">
+                        <p className="uppercase tracking-[0.14em] text-slate-600">{t('home.preview.highestBid', lang)}</p>
+                        <p className="mt-1 text-3xl font-semibold" style={{ color: '#1a6b3c' }}>
+                          {event.highestBid != null ? `€${formatPrice(event.highestBid)}` : '—'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Link
+                      href={buyHref}
+                      className="mt-4 block rounded-full bg-emerald-500 px-3 py-2 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
+                    >
+                      {t('market.buyTicketBtn', lang)} →
+                    </Link>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
     </div>
