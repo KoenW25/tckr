@@ -6,6 +6,41 @@ import { t } from '@/lib/translations';
 
 export default function Home() {
   const { lang } = useLanguage();
+  const howItWorksCards = [
+    {
+      number: '01',
+      title: 'Koop direct',
+      description:
+        'Zie je een ticket voor een prijs die je aanspreekt? Koop hem direct. Je betaalt de vraagprijs plus een kleine servicekosten.',
+      tag: 'Altijd veilig',
+      tagBg: '#eef7f1',
+      tagColor: '#1a6b3c',
+      iconBg: 'bg-emerald-50',
+      icon: '💳',
+    },
+    {
+      number: '02',
+      title: 'Doe een bod',
+      description:
+        'Wil je minder betalen, of zijn er nog geen tickets beschikbaar? Doe een bod. Zodra een verkoper akkoord gaat ontvang je een betaallink.',
+      tag: 'Ook zonder aanbod',
+      tagBg: '#e6f1fb',
+      tagColor: '#185FA5',
+      iconBg: 'bg-sky-50',
+      icon: '⏃',
+    },
+    {
+      number: '03',
+      title: 'Verkoop veilig',
+      description:
+        'Upload je ticket, stel je prijs in en wacht op een koper. Wij verifiëren het ticket en betalen je direct uit na de transactie.',
+      tag: 'Geen gedoe',
+      tagBg: '#f3f4f6',
+      tagColor: '#475569',
+      iconBg: 'bg-slate-100',
+      icon: '↓',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -130,6 +165,43 @@ export default function Home() {
             </div>
           </aside>
       </main>
+
+      <section
+        className="border-y border-slate-200"
+        style={{ borderTopWidth: '0.5px', borderBottomWidth: '0.5px' }}
+      >
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Hoe het werkt</p>
+            <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
+              Eerlijk handelen in tickets
+            </h2>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {howItWorksCards.map((card) => (
+              <article
+                key={card.number}
+                className="rounded-[12px] border border-slate-200 bg-white p-7"
+                style={{ borderWidth: '0.5px' }}
+              >
+                <p className="text-2xl text-slate-700">{card.number}</p>
+                <div className={`mt-4 inline-flex h-12 w-12 items-center justify-center rounded-xl ${card.iconBg}`}>
+                  <span className="text-xl">{card.icon}</span>
+                </div>
+                <h3 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">{card.title}</h3>
+                <p className="mt-2 text-base leading-relaxed text-slate-700">{card.description}</p>
+                <span
+                  className="mt-5 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ backgroundColor: card.tagBg, color: card.tagColor }}
+                >
+                  {card.tag}
+                </span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
