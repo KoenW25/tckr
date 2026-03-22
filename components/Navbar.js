@@ -246,7 +246,7 @@ export default function Navbar() {
                   className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                 />
                 {searchOpen && headerSearch.trim() && (
-                  <div className="absolute right-0 z-30 mt-1 max-h-72 w-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl sm:w-80">
+                  <div className="absolute right-0 z-30 mt-1 max-h-72 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl sm:w-80">
                     {searchItems.length > 0 ? (
                       searchItems.map((item) => (
                         <button

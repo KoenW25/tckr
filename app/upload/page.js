@@ -96,6 +96,7 @@ function UploadPageContent() {
   const { lang } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestedUploadPath = `/upload${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
   const fileInputRef = useRef(null);
 
   const [user, setUser] = useState(null);
@@ -145,9 +146,19 @@ function UploadPageContent() {
           return;
         }
 
+        // Try refreshing once before redirecting; browser session
+        // hydration can lag briefly after returning from auth flow.
+        const {
+          data: { session: refreshedSession },
+        } = await supabase.auth.refreshSession();
+        if (refreshedSession?.user) {
+          if (isMounted) setUser(refreshedSession.user);
+          return;
+        }
+
         const { data, error } = await supabase.auth.getUser();
         if (error || !data.user) {
-          router.replace('/login?next=/upload');
+          router.replace(`/login?next=${encodeURIComponent(requestedUploadPath)}`);
           return;
         }
         if (isMounted) setUser(data.user);
@@ -161,7 +172,7 @@ function UploadPageContent() {
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [router, requestedUploadPath]);
 
   useEffect(() => {
     function handleClickOutside(e) {

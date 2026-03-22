@@ -12,6 +12,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isDevMode = searchParams.get('dev') === 'true';
+  const nextPath = searchParams.get('next') || '/dashboard';
 
   const [magicEmail, setMagicEmail] = useState('');
   const [magicLoading, setMagicLoading] = useState(false);
@@ -29,7 +30,7 @@ function LoginContent() {
     async function redirectIfSessionExists() {
       const { data } = await supabase.auth.getSession();
       if (mounted && data?.session) {
-        router.replace('/dashboard');
+        router.replace(nextPath);
       }
     }
 
@@ -39,7 +40,7 @@ function LoginContent() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
-        router.replace('/dashboard');
+        router.replace(nextPath);
       }
     });
 
@@ -47,7 +48,7 @@ function LoginContent() {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, nextPath]);
 
   const handleMagicLink = async (e) => {
     e.preventDefault();
@@ -119,7 +120,7 @@ function LoginContent() {
         } catch {}
       }
 
-      router.push('/dashboard');
+      router.push(nextPath);
     } catch (err) {
       console.error('Dev login error:', err);
       setDevError(err.message || t('login.failed', lang));

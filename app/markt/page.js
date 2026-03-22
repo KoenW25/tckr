@@ -20,6 +20,30 @@ function parseSafeDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function getLastDayIso(ev) {
+  return ev.lastDayDate || (ev.date ? String(ev.date).slice(0, 10) : null);
+}
+
+function isEventPast(ev, todayIso) {
+  const last = getLastDayIso(ev);
+  if (!last) return false;
+  return last < todayIso;
+}
+
+function sortTimeFirstDay(ev) {
+  const raw = ev.firstDayDate || ev.filterDate || ev.date;
+  if (!raw) return Number.MAX_SAFE_INTEGER;
+  const parsed = parseSafeDate(String(raw).slice(0, 10));
+  return parsed ? parsed.getTime() : Number.MAX_SAFE_INTEGER;
+}
+
+function sortTimeLastDayDesc(ev) {
+  const raw = getLastDayIso(ev);
+  if (!raw) return 0;
+  const parsed = parseSafeDate(raw);
+  return parsed ? parsed.getTime() : 0;
+}
+
 function formatEventDaySummary(dayValues, locale = 'nl-NL') {
   if (!Array.isArray(dayValues) || dayValues.length === 0) return null;
   const uniqueDays = [...new Set(dayValues.filter(Boolean))].sort();
@@ -95,6 +119,7 @@ export default function MarktPage() {
   const [newEventDate, setNewEventDate] = useState('');
   const [newEventVenue, setNewEventVenue] = useState('');
   const [addingEvent, setAddingEvent] = useState(false);
+  const [pastExpanded, setPastExpanded] = useState(false);
   const searchRef = useRef(null);
 
   useEffect(() => {
@@ -226,7 +251,13 @@ export default function MarktPage() {
           dayValues.find((value) => value >= todayIso) ||
           dayValues[0] ||
           null;
-        const lastDayDate = dayValues.length > 0 ? dayValues[dayValues.length - 1] : null;
+        const lastDayDate =
+          dayValues.length > 0
+            ? dayValues[dayValues.length - 1]
+            : ev.date
+              ? String(ev.date).slice(0, 10)
+              : null;
+        const firstDayDate = dayValues.length > 0 ? dayValues[0] : lastDayDate;
         return {
           ...ev,
           lowestAsk,
@@ -237,6 +268,7 @@ export default function MarktPage() {
           verifiedCount: td.verifiedCount,
           daySummary: formatEventDaySummary(dayValues, lang === 'nl' ? 'nl-NL' : 'en-GB'),
           defaultDayDate,
+          firstDayDate,
           lastDayDate,
           filterDate: defaultDayDate || ev.date || null,
         };
@@ -271,9 +303,30 @@ export default function MarktPage() {
     [eventCards]
   );
 
-  const filtered = useMemo(() => {
+  const baseFiltered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
+    return eventCards.filter((ev) => {
+      if (q) {
+        const matchSearch =
+          ev.name?.toLowerCase().includes(q) ||
+          ev.venue?.toLowerCase().includes(q) ||
+          ev.venue_name?.toLowerCase().includes(q) ||
+          ev.city?.toLowerCase().includes(q) ||
+          ev.country_code?.toLowerCase().includes(q);
+        if (!matchSearch) return false;
+      }
+
+      if (filterCity && String(ev.city || '') !== filterCity) return false;
+
+      const venueLabel = ev.venue_name || ev.venue || '';
+      if (filterVenue && String(venueLabel) !== filterVenue) return false;
+
+      return true;
+    });
+  }, [eventCards, search, filterCity, filterVenue]);
+
+  const filteredUpcoming = useMemo(() => {
     const startOfDay = (date) => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
@@ -304,52 +357,49 @@ export default function MarktPage() {
       return { start: startOfDay(saturday), end: endOfDay(sunday) };
     };
 
-    return eventCards
+    return baseFiltered
+      .filter((ev) => !isEventPast(ev, todayIso))
       .filter((ev) => {
-        if (q) {
-          const matchSearch =
-            ev.name?.toLowerCase().includes(q) ||
-            ev.venue?.toLowerCase().includes(q) ||
-            ev.venue_name?.toLowerCase().includes(q) ||
-            ev.city?.toLowerCase().includes(q) ||
-            ev.country_code?.toLowerCase().includes(q);
-          if (!matchSearch) return false;
-        }
+        if (dateFilter === 'all') return true;
 
-        if (filterCity && String(ev.city || '') !== filterCity) return false;
+        const eventDate = parseEventDate(ev.filterDate || ev.date);
+        if (!eventDate) return false;
 
-        const venueLabel = ev.venue_name || ev.venue || '';
-        if (filterVenue && String(venueLabel) !== filterVenue) return false;
-
-        if (dateFilter !== 'all') {
-          const eventDate = parseEventDate(ev.filterDate || ev.date);
-          if (!eventDate) return false;
-
-          if (dateFilter === 'thisWeekend') {
-            const range = getWeekendRange(0);
-            if (eventDate < range.start || eventDate > range.end) return false;
-          } else if (dateFilter === 'nextWeekend') {
-            const range = getWeekendRange(1);
-            if (eventDate < range.start || eventDate > range.end) return false;
-          } else if (dateFilter === 'custom') {
-            if (!customDate) return false;
-            const custom = parseEventDate(customDate);
-            if (!custom) return false;
-            if (startOfDay(eventDate).getTime() !== startOfDay(custom).getTime()) return false;
-          }
+        if (dateFilter === 'thisWeekend') {
+          const range = getWeekendRange(0);
+          if (eventDate < range.start || eventDate > range.end) return false;
+        } else if (dateFilter === 'nextWeekend') {
+          const range = getWeekendRange(1);
+          if (eventDate < range.start || eventDate > range.end) return false;
+        } else if (dateFilter === 'custom') {
+          if (!customDate) return false;
+          const custom = parseEventDate(customDate);
+          if (!custom) return false;
+          if (startOfDay(eventDate).getTime() !== startOfDay(custom).getTime()) return false;
         }
 
         return true;
       })
       .sort((a, b) => {
-        const aTime = a.filterDate ? new Date(a.filterDate).getTime() : Number.MAX_SAFE_INTEGER;
-        const bTime = b.filterDate ? new Date(b.filterDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const aTime = sortTimeFirstDay(a);
+        const bTime = sortTimeFirstDay(b);
         if (aTime !== bTime) return aTime - bTime;
         return String(a.name || '').localeCompare(String(b.name || ''), 'nl');
       });
-  }, [eventCards, search, filterCity, filterVenue, dateFilter, customDate]);
+  }, [baseFiltered, dateFilter, customDate]);
 
-  const showNoResults = search.trim() && filtered.length === 0 && !loading;
+  const filteredPast = useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    return baseFiltered
+      .filter((ev) => isEventPast(ev, todayIso))
+      .sort((a, b) => {
+        const diff = sortTimeLastDayDesc(b) - sortTimeLastDayDesc(a);
+        if (diff !== 0) return diff;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'nl');
+      });
+  }, [baseFiltered]);
+
+  const showNoResults = search.trim() && baseFiltered.length === 0 && !loading;
 
   const handleAddEvent = async () => {
     if (!newEventName.trim()) return;
@@ -372,9 +422,24 @@ export default function MarktPage() {
 
       if (insertErr) throw insertErr;
 
+      const dayIso = newEventDate ? String(newEventDate).slice(0, 10) : null;
       setEventCards((prev) => [
         ...prev,
-        { ...data, lowestAsk: null, highestBid: null, ticketCount: 0, bidCount: 0 },
+        {
+          ...data,
+          lowestAsk: null,
+          highestBid: null,
+          ticketCount: 0,
+          bidCount: 0,
+          verifiedCount: 0,
+          daySummary: dayIso
+            ? formatEventDaySummary([dayIso], lang === 'nl' ? 'nl-NL' : 'en-GB')
+            : null,
+          firstDayDate: dayIso,
+          lastDayDate: dayIso,
+          defaultDayDate: dayIso,
+          filterDate: dayIso,
+        },
       ]);
       setSearch('');
       setShowAddEvent(false);
@@ -587,10 +652,43 @@ export default function MarktPage() {
         {error && <p className="text-center text-rose-600">{error}</p>}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((ev) => (
+          {filteredUpcoming.map((ev) => (
             <EventCard key={ev.id} event={ev} lang={lang} />
           ))}
         </section>
+
+        {!loading && filteredUpcoming.length === 0 && eventCards.length > 0 && (
+          <p className="mt-6 text-center text-sm text-slate-500">
+            {t('market.noUpcomingEvents', lang)}
+          </p>
+        )}
+
+        {!loading && filteredPast.length > 0 && (
+          <div className="mt-10 border-t border-slate-200 pt-8">
+            <button
+              type="button"
+              onClick={() => setPastExpanded((v) => !v)}
+              aria-expanded={pastExpanded}
+              title={t('market.pastEventsToggle', lang)}
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50"
+            >
+              <span>{t('market.pastEvents', lang)}</span>
+              <span className="text-slate-500" aria-hidden>
+                {pastExpanded ? '▾' : '▸'}
+              </span>
+            </button>
+            {pastExpanded && (
+              <section
+                className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+                aria-label={t('market.pastEvents', lang)}
+              >
+                {filteredPast.map((ev) => (
+                  <EventCard key={ev.id} event={ev} lang={lang} />
+                ))}
+              </section>
+            )}
+          </div>
+        )}
 
         {!loading && !search.trim() && eventCards.length === 0 && (
           <p className="mt-6 text-center text-sm text-slate-500">

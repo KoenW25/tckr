@@ -23,10 +23,20 @@ export default function Home() {
           .from('events')
           .select('id, name, date, city')
           .order('date', { ascending: true })
-          .limit(3);
+          .limit(30);
 
         if (eventsError) throw eventsError;
-        const events = eventsData ?? [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const events = (eventsData ?? [])
+          .filter((event) => {
+            if (!event?.date) return true;
+            const eventDate = new Date(event.date);
+            if (Number.isNaN(eventDate.getTime())) return true;
+            eventDate.setHours(0, 0, 0, 0);
+            return eventDate >= today;
+          })
+          .slice(0, 3);
         if (events.length === 0) {
           if (isMounted) setPreviewEvents([]);
           return;
@@ -174,15 +184,15 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="flex flex-nowrap items-center gap-4 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-slate-500 sm:flex-nowrap sm:gap-4">
               <div className="flex items-center gap-2">
                 <span className="h-5 w-5 rounded-full bg-emerald-50 ring-1 ring-emerald-200" />
-                <span className="whitespace-nowrap">{t('home.featureFraud', lang)}</span>
+                <span className="sm:whitespace-nowrap">{t('home.featureFraud', lang)}</span>
               </div>
               <span className="h-3 w-px bg-slate-200" />
-              <span className="whitespace-nowrap">{t('home.featurePayout', lang)}</span>
+              <span className="sm:whitespace-nowrap">{t('home.featurePayout', lang)}</span>
               <span className="h-3 w-px bg-slate-200" />
-              <span className="whitespace-nowrap">{t('home.featureFees', lang)}</span>
+              <span className="sm:whitespace-nowrap">{t('home.featureFees', lang)}</span>
             </div>
           </section>
 
