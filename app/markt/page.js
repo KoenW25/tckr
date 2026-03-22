@@ -327,6 +327,7 @@ export default function MarktPage() {
   }, [eventCards, search, filterCity, filterVenue]);
 
   const filteredUpcoming = useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10);
     const startOfDay = (date) => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
