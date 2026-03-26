@@ -147,7 +147,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white text-slate-900">
       {/* Hero */}
-      <main className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-10 px-4 py-16 sm:px-6 lg:flex-row lg:py-24 lg:px-8">
+      <main className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-8 px-4 py-12 sm:px-6 lg:flex-row lg:py-16 lg:px-8">
         <section className="flex-1 space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -272,7 +272,7 @@ export default function Home() {
         className="border-y border-slate-200"
         style={{ borderTopWidth: '0.5px', borderBottomWidth: '0.5px' }}
       >
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-14 lg:px-8">
           <div className="text-center">
             <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{t('home.how.label', lang)}</p>
             <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">
@@ -280,7 +280,7 @@ export default function Home() {
             </h2>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
             {howItWorksCards.map((card) => (
               <article
                 key={card.number}
@@ -306,7 +306,7 @@ export default function Home() {
       </section>
 
       <section className="border-t border-slate-200" style={{ borderTopWidth: '0.5px' }}>
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10 lg:px-8">
           <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-200 pb-4" style={{ borderBottomWidth: '0.5px' }}>
             <h3 className="text-2xl tracking-tight text-slate-900">{t('home.preview.title', lang)}</h3>
             <Link href="/markt" className="text-sm text-slate-700 transition hover:text-slate-900">
